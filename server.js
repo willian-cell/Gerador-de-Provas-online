@@ -11,10 +11,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Ensure upload directory exists (uses DATA_DIR on Render for persistence)
-const uploadsBase = process.env.DATA_DIR
+let uploadsBase = process.env.DATA_DIR
   ? path.join(process.env.DATA_DIR, 'uploads')
   : path.join(__dirname, 'uploads');
-fs.mkdirSync(uploadsBase, { recursive: true });
+
+try {
+  fs.mkdirSync(uploadsBase, { recursive: true });
+} catch (e) {
+  console.warn(`[Uploads] DATA_DIR not writable: ${e.code}. Falling back to ./uploads/`);
+  uploadsBase = path.join(__dirname, 'uploads');
+  fs.mkdirSync(uploadsBase, { recursive: true });
+}
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));

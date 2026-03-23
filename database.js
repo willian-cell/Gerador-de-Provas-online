@@ -2,12 +2,22 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 
-const dataDir = process.env.DATA_DIR
+// Use DATA_DIR env (Render persistent disk) or fall back to local ./data/
+let dataDir = process.env.DATA_DIR
   ? path.join(process.env.DATA_DIR)
   : path.join(__dirname, 'data');
-const dbPath = path.join(dataDir, 'provas.db');
-fs.mkdirSync(dataDir, { recursive: true });
 
+try {
+  fs.mkdirSync(dataDir, { recursive: true });
+} catch (e) {
+  // DATA_DIR not writable (disk not yet mounted) — fall back
+  console.warn(`[DB] DATA_DIR "${dataDir}" not writable: ${e.code}. Falling back to ./data/`);
+  dataDir = path.join(__dirname, 'data');
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+
+const dbPath = path.join(dataDir, 'provas.db');
 const db = new sqlite3.Database(dbPath);
 
 // Enable WAL mode and foreign keys
