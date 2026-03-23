@@ -42,6 +42,23 @@ git push -u origin main
 | **Plan** | `Free` |
 | **Region** | `Oregon (US West)` |
 
+
+Push realizado com sucesso! O código está no GitHub agora.
+
+O que aconteceu: O Git criou o branch local como master (padrão antigo), mas você tentou publicar em main. O comando git branch -M main renomeou o branch antes do push.
+
+Próximo passo — deploy no Render:
+
+Acesse dashboard.render.com
+New → Web Service → conecte o repositório willian-cell/Gerador-de-Provas-online
+Configure:
+Build: npm install | Start: node server.js
+Na aba Environment, adicione as variáveis:
+GROQ_API_KEY = sua chave
+SESSION_SECRET = string aleatória longa
+DATA_DIR = /var/data
+Na aba Disks → adicione disco wbo-data em /var/data (1 GB)
+Clique Create Web Service → aguarde 2–5 min → URL pública pronta! 
 ---
 
 ## Passo 3 — Variáveis de Ambiente
