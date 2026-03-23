@@ -1,111 +1,123 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
 
-// Usa DATA_DIR (disco Render) ou fallback para ./data/
-let dataDir = process.env.DATA_DIR
-  ? path.join(process.env.DATA_DIR)
-  : path.join(__dirname, 'data');
-
-try {
-  fs.mkdirSync(dataDir, { recursive: true });
-} catch (e) {
-  console.warn(`[DB] DATA_DIR "${dataDir}" não gravável (${e.code}). Usando ./data/`);
-  dataDir = path.join(__dirname, 'data');
-  fs.mkdirSync(dataDir, { recursive: true });
+// ─── Conexão com PostgreSQL (Neon ou local) ────────────────
+if (!process.env.DATABASE_URL) {
+  console.error('[DB] ❌ Variável DATABASE_URL não definida!');
+  console.error('[DB] Crie um banco em https://neon.tech e adicione DATABASE_URL no Render.');
+  process.exit(1);
 }
 
-const dbPath = path.join(dataDir, 'provas.db');
-console.log(`[DB] Banco em: ${dbPath}`);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL.includes('neon.tech') ? { rejectUnauthorized: false } : false
+});
 
-const db = new Database(dbPath);
+// ─── Conversor de parâmetros  ?  →  $1, $2, ... ──────────
+// Permite que todos os arquivos de rota continuem usando ?
+function toPostgres(sql, params = []) {
+  let i = 0;
+  const converted = sql.replace(/\?/g, () => `$${++i}`);
+  return [converted, params];
+}
 
-// Configurações de performance e segurança
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
-// Criação das tabelas
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    cpf TEXT UNIQUE NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS files (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    filename TEXT NOT NULL,
-    filepath TEXT NOT NULL,
-    filesize INTEGER DEFAULT 0,
-    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS exams (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    file_id INTEGER NOT NULL,
-    style TEXT NOT NULL,
-    total_questions INTEGER NOT NULL,
-    correct_answers INTEGER DEFAULT 0,
-    score REAL DEFAULT 0,
-    completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (file_id) REFERENCES files(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS questions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    file_id INTEGER NOT NULL,
-    style TEXT NOT NULL,
-    question_json TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (file_id) REFERENCES files(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS review_questions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    file_id INTEGER NOT NULL,
-    style TEXT NOT NULL,
-    question_json TEXT NOT NULL,
-    question_hash TEXT NOT NULL,
-    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, question_hash),
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (file_id) REFERENCES files(id)
-  );
-`);
-
-console.log('[DB] Tabelas verificadas/criadas com sucesso.');
-
-// ──────── Helpers promisificados (mesma API dos arquivos de rota) ────────
-
-db.getAsync = (sql, params = []) => {
+// ─── Criação das tabelas ───────────────────────────────────
+async function initDB() {
+  const client = await pool.connect();
   try {
-    return Promise.resolve(db.prepare(sql).get(params));
-  } catch (err) {
-    return Promise.reject(err);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id        SERIAL PRIMARY KEY,
+        name      TEXT NOT NULL,
+        cpf       TEXT UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS files (
+        id         SERIAL PRIMARY KEY,
+        user_id    INTEGER NOT NULL REFERENCES users(id),
+        filename   TEXT NOT NULL,
+        filepath   TEXT NOT NULL,
+        filesize   INTEGER DEFAULT 0,
+        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS exams (
+        id               SERIAL PRIMARY KEY,
+        user_id          INTEGER NOT NULL REFERENCES users(id),
+        file_id          INTEGER NOT NULL REFERENCES files(id),
+        style            TEXT NOT NULL,
+        total_questions  INTEGER NOT NULL,
+        correct_answers  INTEGER DEFAULT 0,
+        score            DOUBLE PRECISION DEFAULT 0,
+        completed_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS questions (
+        id            SERIAL PRIMARY KEY,
+        file_id       INTEGER NOT NULL REFERENCES files(id),
+        style         TEXT NOT NULL,
+        question_json TEXT NOT NULL,
+        created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS review_questions (
+        id            SERIAL PRIMARY KEY,
+        user_id       INTEGER NOT NULL REFERENCES users(id),
+        file_id       INTEGER NOT NULL REFERENCES files(id),
+        style         TEXT NOT NULL,
+        question_json TEXT NOT NULL,
+        question_hash TEXT NOT NULL,
+        added_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, question_hash)
+      );
+    `);
+    console.log('[DB] ✅ Tabelas verificadas/criadas com sucesso.');
+  } finally {
+    client.release();
+  }
+}
+
+// ─── Helpers async (mesma API usada nos arquivos de rota) ─
+const db = {
+  // Retorna uma linha
+  getAsync: async (sql, params = []) => {
+    const [q, p] = toPostgres(sql, params);
+    const { rows } = await pool.query(q, p);
+    return rows[0] || undefined;
+  },
+
+  // Retorna todas as linhas
+  allAsync: async (sql, params = []) => {
+    const [q, p] = toPostgres(sql, params);
+    const { rows } = await pool.query(q, p);
+    return rows;
+  },
+
+  // Executa INSERT / UPDATE / DELETE
+  // Retorna { lastID, changes } para manter compatibilidade com código existente
+  runAsync: async (sql, params = []) => {
+    // Para INSERT com RETURNING id (usado em alguns casos)
+    let sqlToRun = sql;
+
+    // Se for INSERT sem RETURNING, adiciona RETURNING id para pegar lastID
+    if (/^\s*INSERT/i.test(sql) && !/RETURNING/i.test(sql)) {
+      sqlToRun = sql.trimEnd().replace(/;?\s*$/, '') + ' RETURNING id';
+    }
+
+    const [q, p] = toPostgres(sqlToRun, params);
+    const result = await pool.query(q, p);
+
+    return {
+      lastID: result.rows[0]?.id ?? null,
+      changes: result.rowCount
+    };
   }
 };
 
-db.allAsync = (sql, params = []) => {
-  try {
-    return Promise.resolve(db.prepare(sql).all(params));
-  } catch (err) {
-    return Promise.reject(err);
-  }
-};
-
-db.runAsync = (sql, params = []) => {
-  try {
-    const result = db.prepare(sql).run(params);
-    return Promise.resolve({ lastID: result.lastInsertRowid, changes: result.changes });
-  } catch (err) {
-    return Promise.reject(err);
-  }
-};
+// Inicia o banco de dados ao carregar o módulo
+initDB().catch(err => {
+  console.error('[DB] ❌ Erro ao iniciar banco de dados:', err.message);
+  process.exit(1);
+});
 
 module.exports = db;

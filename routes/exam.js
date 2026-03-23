@@ -244,8 +244,9 @@ router.post('/submit', requireAuth, async (req, res) => {
       ).toString('base64').substring(0, 64);
       if (!r.isCorrect) {
         await db.runAsync(
-          `INSERT OR IGNORE INTO review_questions (user_id, file_id, style, question_json, question_hash)
-           VALUES (?, ?, ?, ?, ?)`,
+          `INSERT INTO review_questions (user_id, file_id, style, question_json, question_hash)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT (user_id, question_hash) DO NOTHING`,
           [req.session.userId, fileId, style, JSON.stringify(r), hash]
         );
       } else {
