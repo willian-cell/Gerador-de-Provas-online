@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Revisão - Gerador de Provas Online</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .review-hero {
+      background: linear-gradient(135deg, rgba(255,71,87,0.12), rgba(255,167,38,0.08));
+      border: 1px solid rgba(255,71,87,0.2);
+      border-radius: var(--radius-xl);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .review-hero-info { display: flex; align-items: center; gap: 1.25rem; }
+    .review-hero-icon { font-size: 2.5rem; }
+    .review-count { font-size: 2.5rem; font-weight: 900; color: #FF4757; line-height: 1; }
+    .review-label { font-size: 0.85rem; color: var(--gray-400); }
+    .review-actions { display: flex; gap: 0.75rem; align-items: center; flex-shrink: 0; }
+
+    .q-list-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .review-q-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(255,71,87,0.15);
+      background: rgba(255,71,87,0.04);
+      margin-bottom: 0.6rem;
+      transition: all var(--transition);
+    }
+    .review-q-item:hover { border-color: rgba(255,71,87,0.35); background: rgba(255,71,87,0.08); }
+    .review-q-body { flex: 1; overflow: hidden; }
+    .review-q-style { font-size: 0.7rem; font-weight: 700; color: var(--gray-400); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 0.3rem; }
+    .review-q-text { font-size: 0.9rem; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .review-q-file { font-size: 0.75rem; color: var(--gray-500); margin-top: 0.3rem; }
+    .review-q-answer {
+      font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem;
+      border-radius: 99px; white-space: nowrap; flex-shrink: 0; margin-top: 2px;
+    }
+    .answer-wrong { background: rgba(255,71,87,0.15); color: #FF8A8A; }
+    .answer-correct { background: rgba(0,200,83,0.15); color: #69F0AE; }
+
+    .empty-review {
+      text-align: center; padding: 4rem 2rem; color: var(--gray-500);
+    }
+    .empty-review .big-icon { font-size: 4rem; margin-bottom: 1rem; }
+
+    /* ── Exam overlay ─────────────────────────── */
+    .review-exam-overlay {
+      position: fixed; inset: 0;
+      background: var(--dark-800);
+      z-index: 500;
+      overflow-y: auto;
+      display: none;
+    }
+    .review-exam-overlay.open { display: block; animation: fadeIn 0.25s ease; }
+    .rev-exam-header {
+      padding: 1rem 2rem;
+      background: var(--dark-900);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .rev-exam-body { max-width: 860px; margin: 0 auto; padding: 2rem; }
+    .pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎓</div>
+      <div class="logo-text"><strong>WBO Tecnologia</strong><span>Sistema Gerador de Provas</span></div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="avatarChar">?</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebarName">Carregando...</div>
+        <div class="user-cpf" id="sidebarCPF"></div>
+      </div>
+    </div>
+    <div class="nav-label">Menu</div>
+    <a href="/dashboard" class="nav-link">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/></svg>
+      Dashboard
+    </a>
+    <a href="/profile" class="nav-link">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Perfil
+    </a>
+    <a href="/ranking" class="nav-link">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M8 16v-4M12 16V8M16 16v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="2" y="2" width="20" height="20" rx="4" stroke="currentColor" stroke-width="2"/></svg>
+      Ranking
+    </a>
+    <a href="/review" class="nav-link active">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Revisão
+    </a>
+    <div class="sidebar-footer">
+      <button onclick="logout()" class="btn btn-ghost btn-full">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Sair
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <header class="page-header">
+      <div>
+        <h3 style="font-size:1.1rem;margin:0">🔄 Banco de Revisão</h3>
+        <p style="font-size:0.8rem;color:var(--gray-400);margin:0">Questões erradas acumuladas entre provas</p>
+      </div>
+    </header>
+
+    <div class="page-body">
+      <!-- Hero card -->
+      <div class="review-hero" id="reviewHero">
+        <div class="review-hero-info">
+          <div class="review-hero-icon">❌</div>
+          <div>
+            <div class="review-count" id="reviewCount">0</div>
+            <div class="review-label">questões no banco de revisão</div>
+          </div>
+        </div>
+        <div class="review-actions">
+          <button class="btn btn-danger btn-sm" id="clearAllBtn" onclick="clearAll()" style="display:none">
+            🗑️ Limpar tudo
+          </button>
+          <button class="btn btn-success" id="startReviewBtn" onclick="startReview()" disabled>
+            ▶️ Iniciar Revisão
+          </button>
+        </div>
+      </div>
+
+      <!-- Info banner -->
+      <div class="alert alert-info" style="margin-bottom:1.5rem">
+        💡 Questões erradas em provas são adicionadas aqui automaticamente. Questões que você <strong>acertar na revisão</strong> são removidas do banco.
+      </div>
+
+      <!-- Question list -->
+      <div class="card">
+        <div class="q-list-header">
+          <div class="section-title" style="margin:0" id="listTitle">Carregando...</div>
+          <div style="display:flex;gap:0.5rem" id="filterBtns" style="display:none">
+            <button class="btn btn-ghost btn-sm active-filter" data-filter="all" onclick="applyFilter('all',this)">Todos</button>
+            <button class="btn btn-ghost btn-sm" data-filter="cespe" onclick="applyFilter('cespe',this)">CESPE</button>
+            <button class="btn btn-ghost btn-sm" data-filter="multipla" onclick="applyFilter('multipla',this)">Múltipla</button>
+          </div>
+        </div>
+        <div id="questionList"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ── EXAM OVERLAY ─────────────── -->
+<div class="review-exam-overlay" id="examOverlay">
+  <!-- Score Modal inside overlay -->
+  <div class="modal-overlay hidden" id="revScoreModal">
+    <div class="modal">
+      <div class="score-circle" id="revScoreCircle">
+        <div class="score-number" id="revScoreNumber">0%</div>
+      </div>
+      <h2 id="revScoreTitle">Revisão Concluída!</h2>
+      <p id="revScoreDesc" style="margin:0.5rem 0 1.5rem;color:var(--gray-400)"></p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+        <div class="stat-card"><div style="font-size:1.8rem;font-weight:800;color:var(--green-600)" id="revModalCorrect">0</div><div class="stat-label">Remoções do banco</div></div>
+        <div class="stat-card"><div style="font-size:1.8rem;font-weight:800;color:var(--danger)" id="revModalWrong">0</div><div class="stat-label">Ainda no banco</div></div>
+      </div>
+      <div style="display:flex;gap:0.75rem">
+        <button class="btn btn-ghost" style="flex:1" onclick="revReview()">📋 Ver Gabarito</button>
+        <button class="btn btn-primary" style="flex:1" onclick="closeExam()">← Voltar ao Banco</button>
+      </div>
+    </div>
+  </div>
+
+  <header class="rev-exam-header">
+    <div style="display:flex;align-items:center;gap:1rem">
+      <button class="btn btn-ghost btn-sm" onclick="closeExam()">← Voltar</button>
+      <div>
+        <div style="font-weight:700;font-size:0.9rem">Prova de Revisão</div>
+        <div style="font-size:0.75rem;color:var(--gray-400)" id="revStyleLabel"></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:1rem;font-size:0.875rem">
+      <span style="color:var(--gray-400)">Questão <strong id="revCurrentQ">1</strong> de <strong id="revTotalQ">?</strong></span>
+      <span style="color:var(--gray-400)">Respondidas: <strong id="revAnsweredCount" style="color:var(--green-600)">0</strong></span>
+      <button class="btn btn-success btn-sm" id="revSubmitBtn" onclick="submitReview()">✔ Finalizar</button>
+    </div>
+  </header>
+
+  <div style="padding:0.5rem 2rem;background:rgba(0,0,0,0.2)">
+    <div class="progress-bar"><div class="progress-fill" id="revProgressFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="rev-exam-body">
+    <p class="text-muted text-center" id="revPageInfo" style="margin-bottom:1.5rem">Página 1 de 1</p>
+    <div id="revQContainer"></div>
+    <div class="pagination">
+      <button class="btn btn-ghost" id="revPrevBtn" disabled onclick="revChangePage(-1)">← Anterior</button>
+      <div id="revPageNums" style="display:flex;gap:0.5rem"></div>
+      <button class="btn btn-primary" id="revNextBtn" onclick="revChangePage(1)">Próxima →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const QS_PER_PAGE = 10;
+  let allReviewQ = [];
+  let filteredQ = [];
+  let revAnswers = {};
+  let revPage = 0;
+  let revReviewed = false;
+  let revSubmitted = false;
+  let currentFilter = 'all';
+
+  async function init() {
+    const res = await fetch('/api/auth/me');
+    if (!res.ok) { window.location.href = '/'; return; }
+    const user = await res.json();
+    document.getElementById('sidebarName').textContent = user.name;
+    document.getElementById('avatarChar').textContent = user.name[0].toUpperCase();
+    document.getElementById('sidebarCPF').textContent = user.cpf.slice(0,3)+'.***.***-'+user.cpf.slice(9);
+    loadQuestions();
+  }
+
+  async function loadQuestions() {
+    const res = await fetch('/api/review/questions');
+    allReviewQ = await res.json();
+    applyFilter(currentFilter, null, true);
+  }
+
+  function applyFilter(filter, btn, silent) {
+    currentFilter = filter;
+    if (!silent) {
+      document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active-filter','btn-primary'));
+      if (btn) { btn.classList.add('btn-primary'); }
+    }
+    filteredQ = filter === 'all' ? allReviewQ : allReviewQ.filter(q => q.style === filter);
+    renderList();
+  }
+
+  function renderList() {
+    const count = allReviewQ.length;
+    document.getElementById('reviewCount').textContent = count;
+    document.getElementById('revScoreModal');
+    const startBtn = document.getElementById('startReviewBtn');
+    const clearBtn = document.getElementById('clearAllBtn');
+    startBtn.disabled = count === 0;
+    clearBtn.style.display = count > 0 ? 'inline-flex' : 'none';
+    document.getElementById('listTitle').textContent = filteredQ.length > 0
+      ? `${filteredQ.length} questão(ões) encontrada(s)` : 'Nenhuma questão';
+    document.getElementById('filterBtns').style.display = allReviewQ.length > 0 ? 'flex' : 'none';
+
+    const list = document.getElementById('questionList');
+    if (!filteredQ.length) {
+      list.innerHTML = `<div class="empty-review">
+        <div class="big-icon">${allReviewQ.length === 0 ? '🎉' : '🔍'}</div>
+        <h3>${allReviewQ.length === 0 ? 'Banco vazio!' : 'Nenhuma questão neste filtro'}</h3>
+        <p>${allReviewQ.length === 0 ? 'Você não tem questões erradas no momento. Faça uma prova para popular o banco.' : 'Tente outro filtro.'}</p>
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = filteredQ.map(q => {
+      const text = q.statement || q.question || '';
+      const preview = text.substring(0, 120) + (text.length > 120 ? '…' : '');
+      const styleBadge = q.style === 'cespe'
+        ? '<span class="badge badge-blue" style="font-size:0.65rem">CESPE</span>'
+        : '<span class="badge badge-green" style="font-size:0.65rem">Múltipla</span>';
+      const correctLabel = q.style === 'cespe'
+        ? (q.answer === 'certo' ? '✅ CERTO' : '❌ ERRADO')
+        : `Certa: <strong>${(q.answer||'').toUpperCase()}</strong>`;
+      return `<div class="review-q-item">
+        <div class="review-q-body">
+          <div class="review-q-style">${styleBadge} · ${q.filename}</div>
+          <div class="review-q-text">${preview}</div>
+          <div class="review-q-file">Gabarito: ${correctLabel}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="flex-shrink:0;color:var(--danger)" onclick="deleteOne(${q.id})" title="Remover esta questão">🗑️</button>
+      </div>`;
+    }).join('');
+  }
+
+  async function deleteOne(id) {
+    await fetch('/api/review/question/' + id, { method: 'DELETE' });
+    allReviewQ = allReviewQ.filter(q => q.id !== id);
+    applyFilter(currentFilter, null, true);
+  }
+
+  async function clearAll() {
+    if (!confirm('Remover TODAS as questões do banco de revisão?')) return;
+    await fetch('/api/review/all', { method: 'DELETE' });
+    allReviewQ = [];
+    applyFilter(currentFilter, null, true);
+  }
+
+  /* ── Review Exam ─────────────────────────── */
+  function startReview() {
+    revAnswers = {};
+    revPage = 0;
+    revReviewed = false;
+    revSubmitted = false;
+    document.getElementById('revAnsweredCount').textContent = '0';
+    document.getElementById('revProgressFill').style.width = '0%';
+    document.getElementById('revSubmitBtn').disabled = false;
+    document.getElementById('revSubmitBtn').textContent = '✔ Finalizar';
+    document.getElementById('revScoreModal').classList.add('hidden');
+    // Mix all filtered questions
+    const qs = [...filteredQ];
+    // Use allReviewQ for actual exam if no filter
+    const examQs = currentFilter === 'all' ? [...allReviewQ] : qs;
+    // Rebuild with _reviewId
+    window._reviewQs = examQs.map(q => ({ ...q, _reviewId: q.id }));
+    document.getElementById('revTotalQ').textContent = window._reviewQs.length;
+    const styles = [...new Set(window._reviewQs.map(q => q.style))];
+    document.getElementById('revStyleLabel').textContent = styles.includes('cespe') && styles.includes('multipla')
+      ? 'CESPE + Múltipla Escolha' : styles[0] === 'cespe' ? 'CESPE / CEBRASPE' : 'Múltipla Escolha';
+    document.getElementById('examOverlay').classList.add('open');
+    renderRevPage(0);
+  }
+
+  function closeExam() {
+    document.getElementById('examOverlay').classList.remove('open');
+    loadQuestions();
+  }
+
+  function renderRevPage(page) {
+    revPage = page;
+    const qs = window._reviewQs;
+    const totalPages = Math.ceil(qs.length / QS_PER_PAGE);
+    const start = page * QS_PER_PAGE;
+    const pageQs = qs.slice(start, start + QS_PER_PAGE);
+    document.getElementById('revPageInfo').textContent = `Página ${page+1} de ${totalPages}`;
+    document.getElementById('revCurrentQ').textContent = start + 1;
+    updateRevProgress();
+    updateRevPagination(page, totalPages);
+
+    const container = document.getElementById('revQContainer');
+    container.innerHTML = '';
+    pageQs.forEach((q, i) => {
+      const globalIdx = start + i;
+      const div = document.createElement('div');
+      div.className = 'question-card';
+      div.innerHTML = buildRevQHTML(q, globalIdx);
+      container.appendChild(div);
+    });
+  }
+
+  function buildRevQHTML(q, idx) {
+    const answered = revAnswers[idx];
+    if (q.style === 'cespe') {
+      const cc = answered === 'certo' ? 'selected' : '';
+      const ec = answered === 'errado' ? 'selected' : '';
+      const expl = revReviewed ? buildRevExpl(q, idx) : '';
+      return `<div class="question-number">Questão ${idx+1}</div>
+        <div class="question-text">${q.statement}</div>
+        <div class="cespe-options">
+          <div class="cespe-option certo ${cc}" onclick="revSelect(${idx},'certo',this)">✅ CERTO</div>
+          <div class="cespe-option errado ${ec}" onclick="revSelect(${idx},'errado',this)">❌ ERRADO</div>
+        </div>${expl}`;
+    } else {
+      const opts = ['a','b','c','d'];
+      const optsHTML = opts.map(o => {
+        const sel = answered === o ? 'selected' : '';
+        return `<label class="option-label ${sel}" onclick="revSelectOpt(${idx},'${o}',this)">
+          <input type="radio" name="rq_${idx}" value="${o}" ${answered===o?'checked':''}>
+          <div class="option-key">${o.toUpperCase()}</div>
+          <span>${q[o]}</span>
+        </label>`;
+      }).join('');
+      const expl = revReviewed ? buildRevExpl(q, idx) : '';
+      return `<div class="question-number">Questão ${idx+1}</div>
+        <div class="question-text">${q.question}</div>
+        <div class="options-grid">${optsHTML}</div>${expl}`;
+    }
+  }
+
+  function buildRevExpl(q, idx) {
+    const ua = (revAnswers[idx] || '').toLowerCase();
+    const ca = (q.answer || '').toLowerCase();
+    const ok = ua !== '' && ua === ca;
+    const uaLabel = revAnswers[idx] ? revAnswers[idx].toUpperCase() : '<em style="color:var(--gray-400)">Não respondida</em>';
+    return `<div class="explanation show" style="border-color:${ok ? 'var(--green-600)' : 'var(--danger)'};">
+      ${ok ? '✅' : '❌'} <strong>Gabarito: ${(q.answer || '').toUpperCase()}</strong> | Sua: ${uaLabel}<br><br>${q.explanation}
+    </div>`;
+  }
+
+  function revSelect(idx, ans, el) {
+    if (revReviewed) return;
+    el.closest('.question-card').querySelectorAll('.cespe-option').forEach(o=>o.classList.remove('selected'));
+    el.classList.add('selected'); revAnswers[idx] = ans; updateRevProgress();
+  }
+  function revSelectOpt(idx, ans, el) {
+    if (revReviewed) return;
+    el.closest('.question-card').querySelectorAll('.option-label').forEach(o=>o.classList.remove('selected'));
+    el.classList.add('selected'); revAnswers[idx] = ans; updateRevProgress();
+  }
+
+  function updateRevProgress() {
+    const answered = Object.keys(revAnswers).length;
+    document.getElementById('revAnsweredCount').textContent = answered;
+    const qs = window._reviewQs || [];
+    document.getElementById('revProgressFill').style.width = qs.length ? (answered/qs.length*100)+'%' : '0%';
+  }
+
+  function updateRevPagination(page, totalPages) {
+    document.getElementById('revPrevBtn').disabled = page === 0;
+    const nextBtn = document.getElementById('revNextBtn');
+    if (page === totalPages - 1) { nextBtn.textContent = '✔ Finalizar'; nextBtn.onclick = submitReview; }
+    else { nextBtn.textContent = 'Próxima →'; nextBtn.onclick = () => revChangePage(1); }
+    const nums = document.getElementById('revPageNums');
+    nums.innerHTML = '';
+    Math.min(totalPages, 7) && [...Array(Math.min(totalPages,7))].forEach((_, i) => {
+      const b = document.createElement('button');
+      b.className = 'btn btn-sm ' + (i===page?'btn-primary':'btn-ghost');
+      b.textContent = i+1; b.onclick = () => renderRevPage(i); nums.appendChild(b);
+    });
+  }
+  function revChangePage(dir) { renderRevPage(revPage + dir); }
+
+  async function submitReview() {
+    if (revSubmitted) return;
+    const qs = window._reviewQs || [];
+    const unanswered = qs.length - Object.keys(revAnswers).length;
+    if (unanswered > 0 && !confirm(`Ainda ${unanswered} questão(ões) sem resposta. As questões em branco serão contadas como erradas. Finalizar?`)) return;
+    revSubmitted = true;
+    document.getElementById('revSubmitBtn').disabled = true;
+    document.getElementById('revSubmitBtn').textContent = '⏳ Salvando...';
+    try {
+      const answers = qs.map((_, i) => revAnswers[i] || '');
+      const res = await fetch('/api/review/submit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers, questions: qs })
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Erro ao salvar revisão.');
+      showRevScore(data);
+    } catch (err) {
+      revSubmitted = false;
+      document.getElementById('revSubmitBtn').disabled = false;
+      document.getElementById('revSubmitBtn').textContent = '✔ Finalizar';
+      alert('Erro ao salvar: ' + err.message + '. Tente novamente.');
+    }
+  }
+
+  function showRevScore(data) {
+    const score  = typeof data.score   === 'number' && isFinite(data.score)   ? data.score   : 0;
+    const correct = typeof data.correct === 'number' && isFinite(data.correct) ? data.correct : 0;
+    const total   = typeof data.total   === 'number' && isFinite(data.total)   ? data.total   : (window._reviewQs || []).length;
+    const wrong   = total - correct;
+    const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+    const deg = Math.round((pct / 100) * 360);
+    document.getElementById('revScoreCircle').style.setProperty('--score-deg', deg + 'deg');
+    document.getElementById('revScoreNumber').textContent = pct + '%';
+    document.getElementById('revScoreTitle').textContent =
+      pct >= 70 ? '🎉 Excelente revisão!' : pct >= 50 ? '👍 Bom resultado!' : '📚 Continue revisando!';
+    document.getElementById('revScoreDesc').textContent = `Você acertou ${correct} de ${total} questões`;
+    document.getElementById('revModalCorrect').textContent = correct;
+    document.getElementById('revModalWrong').textContent = wrong;
+    document.getElementById('revScoreModal').classList.remove('hidden');
+  }
+
+  function revReview() {
+    revReviewed = true;
+    document.getElementById('revScoreModal').classList.add('hidden');
+    document.getElementById('revSubmitBtn').style.display = 'none';
+    renderRevPage(0);
+  }
+
+  async function logout() { await fetch('/api/auth/logout'); window.location.href='/'; }
+  init();
+</script>
+<script src="/js/ui.js"></script></body>
+</html>

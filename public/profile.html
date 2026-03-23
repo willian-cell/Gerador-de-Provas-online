@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perfil - Gerador de Provas Online</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .profile-hero {
+      background: linear-gradient(135deg, rgba(21,101,192,0.2), rgba(0,200,83,0.1));
+      border-radius: var(--radius-xl);
+      padding: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(33,150,243,0.2);
+    }
+    .profile-avatar-lg {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, var(--blue-600), var(--green-600));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      font-weight: 800;
+      flex-shrink: 0;
+      box-shadow: 0 0 30px rgba(0,200,83,0.3);
+    }
+    .profile-details h2 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    .profile-details p { font-size: 0.9rem; color: var(--gray-400); margin: 0; }
+    .history-table th { white-space: nowrap; }
+    .score-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 99px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">🎓</div>
+        <div class="logo-text"><strong>WBO Tecnologia</strong><span>Sistema Gerador de Provas</span></div>
+      </div>
+      <div class="sidebar-user">
+        <div class="user-avatar" id="avatarChar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebarName">Carregando...</div>
+          <div class="user-cpf" id="sidebarCPF"></div>
+        </div>
+      </div>
+      <div class="nav-label">Menu</div>
+      <a href="/dashboard" class="nav-link">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/></svg>
+        Dashboard
+      </a>
+      <a href="/profile" class="nav-link active">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Perfil
+      </a>
+      <a href="/ranking" class="nav-link">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M8 16v-4M12 16V8M16 16v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="2" y="2" width="20" height="20" rx="4" stroke="currentColor" stroke-width="2"/></svg>
+        Ranking
+      </a>
+      <a href="/review" class="nav-link">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Revisão
+      </a>
+      <div class="sidebar-footer">
+        <button onclick="logout()" class="btn btn-ghost btn-full">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Sair
+        </button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="page-header">
+        <div>
+          <h3 style="font-size:1.1rem;margin:0">👤 Meu Perfil</h3>
+          <p style="font-size:0.8rem;color:var(--gray-400);margin:0">Histórico de provas e estatísticas</p>
+        </div>
+      </header>
+      <div class="page-body">
+        <!-- Profile Hero -->
+        <div class="profile-hero" id="profileHero">
+          <div class="profile-avatar-lg" id="profileAvatar">?</div>
+          <div class="profile-details">
+            <h2 id="profileName">—</h2>
+            <p>CPF: <span id="profileCPF">—</span></p>
+            <p style="margin-top:0.5rem">Membro desde <span id="profileSince">—</span></p>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid" style="margin-bottom:2rem">
+          <div class="stat-card">
+            <div class="stat-icon blue">📝</div>
+            <div class="stat-value" id="totalExams">0</div>
+            <div class="stat-label">Provas realizadas</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">🎯</div>
+            <div class="stat-value" id="avgScore">—</div>
+            <div class="stat-label">Média geral</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange">⭐</div>
+            <div class="stat-value" id="bestScore">—</div>
+            <div class="stat-label">Melhor resultado</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon purple">✅</div>
+            <div class="stat-value" id="totalCorrect">—</div>
+            <div class="stat-label">Total de acertos</div>
+          </div>
+        </div>
+
+        <!-- Exam History -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+            <div class="section-title" style="margin:0">📋 Histórico de Provas</div>
+          </div>
+          <div style="overflow-x:auto;border-radius:var(--radius);border:1px solid rgba(255,255,255,0.06)">
+            <table class="ranking-table history-table" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Arquivo</th>
+                  <th>Estilo</th>
+                  <th>Questões</th>
+                  <th>Acertos</th>
+                  <th>Pontuação</th>
+                  <th>Data</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody">
+                <tr><td colspan="6" style="text-align:center;padding:3rem;color:var(--gray-500)">📊 Nenhuma prova realizada ainda</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    async function init() {
+      const res = await fetch('/api/auth/me');
+      if (!res.ok) { window.location.href = '/'; return; }
+      const user = await res.json();
+      const cpfMasked = user.cpf.slice(0,3)+'.***.***-'+user.cpf.slice(9);
+      document.getElementById('sidebarName').textContent = user.name;
+      document.getElementById('avatarChar').textContent = user.name[0].toUpperCase();
+      document.getElementById('sidebarCPF').textContent = cpfMasked;
+      document.getElementById('profileName').textContent = user.name;
+      document.getElementById('profileCPF').textContent = cpfMasked;
+      document.getElementById('profileAvatar').textContent = user.name[0].toUpperCase();
+      loadHistory();
+    }
+
+    async function loadHistory() {
+      const res = await fetch('/api/exam/history');
+      const exams = await res.json();
+      const tbody = document.getElementById('historyBody');
+      if (!exams.length) return;
+
+      // Update stats
+      document.getElementById('totalExams').textContent = exams.length;
+      const avg = exams.reduce((a,b) => a+b.score,0) / exams.length;
+      const best = Math.max(...exams.map(e => e.score));
+      const totalCorrect = exams.reduce((a,b) => a + b.correct_answers, 0);
+      document.getElementById('avgScore').textContent = avg.toFixed(1) + '%';
+      document.getElementById('bestScore').textContent = best.toFixed(1) + '%';
+      document.getElementById('totalCorrect').textContent = totalCorrect;
+
+      // Get user creation date from first exam
+      const firstDate = new Date(exams[exams.length-1].completed_at).toLocaleDateString('pt-BR');
+      document.getElementById('profileSince').textContent = firstDate;
+
+      tbody.innerHTML = exams.map(e => {
+        const score = e.score;
+        const color = score>=70?'var(--green-600)':score>=50?'var(--warning)':'var(--danger)';
+        const bg = score>=70?'rgba(0,200,83,0.15)':score>=50?'rgba(255,167,38,0.15)':'rgba(255,71,87,0.15)';
+        const styleBadge = e.style === 'cespe'
+          ? '<span class="badge badge-blue">CESPE</span>'
+          : '<span class="badge badge-green">Múltipla Escolha</span>';
+        const date = new Date(e.completed_at).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        return `<tr>
+          <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.filename}</td>
+          <td>${styleBadge}</td>
+          <td>${e.total_questions}</td>
+          <td>${e.correct_answers} / ${e.total_questions}</td>
+          <td><span class="score-pill" style="background:${bg};color:${color}">${score.toFixed(1)}%</span></td>
+          <td style="color:var(--gray-400);font-size:0.8rem;white-space:nowrap">${date}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function logout() { await fetch('/api/auth/logout'); window.location.href='/'; }
+    init();
+  </script>
+<script src="/js/ui.js"></script></body>
+</html>

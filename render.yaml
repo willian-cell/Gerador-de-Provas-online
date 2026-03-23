@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: gerador-de-provas-online
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false        # you will paste this manually in Render dashboard
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: wbo-data
+      mountPath: /var/data
+      sizeGB: 1

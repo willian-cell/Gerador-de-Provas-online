@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Realizando Prova - Gerador de Provas Online</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .exam-header {
+      padding: 1rem 2rem;
+      background: var(--dark-900);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .exam-meta { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; }
+    .exam-meta span { color: var(--gray-400); }
+    .exam-meta strong { color: var(--white); }
+    .exam-body { max-width: 860px; margin: 0 auto; padding: 2rem; }
+    .page-info { text-align: center; margin-bottom: 2rem; }
+    .page-info h3 { font-size: 1.2rem; }
+    .pagination { display: flex; align-items: center; justify-content: space-between; margin-top: 2rem; }
+    .explanation {
+      margin-top: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: rgba(33,150,243,0.08);
+      border-left: 3px solid var(--blue-500);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      font-size: 0.875rem;
+      color: var(--gray-300);
+      display: none;
+    }
+    .explanation.show { display: block; animation: slideIn 0.3s ease; }
+    .result-section { margin-top: 1rem; }
+    .result-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.6rem 1rem;
+      border-radius: var(--radius);
+      margin-bottom: 0.4rem;
+      font-size: 0.875rem;
+    }
+    .result-correct { background: rgba(0,200,83,0.1); color: #69F0AE; }
+    .result-wrong { background: rgba(255,71,87,0.1); color: #FF8A8A; }
+  </style>
+</head>
+<body>
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner" style="width:56px;height:56px;border-width:4px"></div>
+    <div class="loading-text">🤖 IA gerando questões...</div>
+    <div class="loading-sub" id="loadingMsg">Analisando o documento e criando questões personalizadas. Isso pode levar alguns minutos para muitas questões.</div>
+  </div>
+
+  <!-- Score Modal -->
+  <div class="modal-overlay hidden" id="scoreModal">
+    <div class="modal">
+      <div class="score-circle" id="scoreCircle">
+        <div class="score-number" id="scoreNumber">0%</div>
+      </div>
+      <h2 id="scoreTitle">Prova Concluída!</h2>
+      <p id="scoreDesc" style="margin:0.5rem 0 1.5rem;color:var(--gray-400)"></p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+        <div class="stat-card">
+          <div style="font-size:1.8rem;font-weight:800;color:var(--green-600)" id="modalCorrect">0</div>
+          <div class="stat-label">Acertos</div>
+        </div>
+        <div class="stat-card">
+          <div style="font-size:1.8rem;font-weight:800;color:var(--danger)" id="modalWrong">0</div>
+          <div class="stat-label">Erros</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:0.75rem">
+        <button class="btn btn-ghost" style="flex:1" onclick="reviewAnswers()">📋 Ver Gabarito</button>
+        <button class="btn btn-primary" style="flex:1" onclick="window.location.href='/dashboard'">🏠 Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="examContainer" class="hidden">
+    <header class="exam-header">
+      <div style="display:flex;align-items:center;gap:1rem">
+        <a href="/dashboard" class="btn btn-ghost btn-sm">← Voltar</a>
+        <div>
+          <div style="font-weight:700;font-size:0.9rem">Gerador de Provas Online</div>
+          <div style="font-size:0.75rem;color:var(--gray-400)" id="examStyleLabel"></div>
+        </div>
+      </div>
+      <div class="exam-meta">
+        <div><span>Questão </span><strong id="currentQNum">1</strong><span> de </span><strong id="totalQNum">?</strong></div>
+        <div class="badge badge-blue" id="examStyleBadge">CESPE</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <div style="font-size:0.85rem;color:var(--gray-400)">Respondidas: <strong id="answeredCount" style="color:var(--green-600)">0</strong></div>
+        <button class="btn btn-success" id="submitBtn">✔ Finalizar Prova</button>
+      </div>
+    </header>
+
+    <div style="padding:0.75rem 2rem;background:rgba(0,0,0,0.2)">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="exam-body">
+      <div class="page-info">
+        <p class="text-muted" id="pageInfo">Página 1 de 1</p>
+      </div>
+      <div id="questionsContainer"></div>
+      <div class="pagination">
+        <button class="btn btn-ghost" id="prevBtn" disabled>← Anterior</button>
+        <div id="pageNumbers" style="display:flex;gap:0.5rem"></div>
+        <button class="btn btn-primary" id="nextBtn">Próxima →</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const QUESTIONS_PER_PAGE = 10;
+    let allQuestions = [];
+    let userAnswers = {};
+    let currentPage = 0;
+    let examParams = {};
+    let examStyle = '';
+    let reviewed = false;
+    let examSubmitted = false; // ← evita dupla submissão
+
+    async function init() {
+      const params = localStorage.getItem('examParams');
+      if (!params) { window.location.href = '/dashboard'; return; }
+      examParams = JSON.parse(params);
+      examStyle = examParams.style;
+      document.getElementById('examStyleLabel').textContent = examStyle === 'cespe' ? 'Estilo CESPE / CEBRASPE' : 'Múltipla Escolha A/B/C/D';
+      document.getElementById('examStyleBadge').textContent = examStyle === 'cespe' ? 'CESPE' : 'Múltipla Escolha';
+      try {
+        const res = await fetch('/api/exam/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(examParams)
+        });
+        const data = await res.json();
+        if (!res.ok) { alert('Erro: ' + data.error); window.location.href='/dashboard'; return; }
+        allQuestions = data.questions;
+        document.getElementById('totalQNum').textContent = allQuestions.length;
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        document.getElementById('examContainer').classList.remove('hidden');
+        renderPage(0);
+        document.getElementById('submitBtn').addEventListener('click', submitExam);
+      } catch(e) { alert('Erro ao gerar questões. Verifique o arquivo e tente novamente.'); window.location.href='/dashboard'; }
+    }
+
+    function renderPage(page) {
+      currentPage = page;
+      const start = page * QUESTIONS_PER_PAGE;
+      const pageQuestions = allQuestions.slice(start, start + QUESTIONS_PER_PAGE);
+      const totalPages = Math.ceil(allQuestions.length / QUESTIONS_PER_PAGE);
+      document.getElementById('pageInfo').textContent = `Página ${page+1} de ${totalPages}`;
+      document.getElementById('currentQNum').textContent = start + 1;
+      updateProgress();
+      updatePagination(page, totalPages);
+
+      const container = document.getElementById('questionsContainer');
+      container.innerHTML = '';
+      pageQuestions.forEach((q, i) => {
+        const globalIdx = start + i;
+        const div = document.createElement('div');
+        div.className = 'question-card' + (reviewed ? '' : '');
+        div.innerHTML = buildQuestionHTML(q, globalIdx);
+        container.appendChild(div);
+        if (reviewed && document.getElementById('exp_'+globalIdx)) {
+          document.getElementById('exp_'+globalIdx).classList.add('show');
+        }
+      });
+    }
+
+    function buildQuestionHTML(q, idx) {
+      const answered = userAnswers[idx];
+      if (examStyle === 'cespe') {
+        const certoClass = answered === 'certo' ? 'selected' : '';
+        const erradoClass = answered === 'errado' ? 'selected' : '';
+        return `<div class="question-number">Questão ${idx+1}</div>
+          <div class="question-text">${q.statement}</div>
+          <div class="cespe-options">
+            <div class="cespe-option certo ${certoClass}" onclick="selectCespe(${idx},'certo',this)">✅ CERTO</div>
+            <div class="cespe-option errado ${erradoClass}" onclick="selectCespe(${idx},'errado',this)">❌ ERRADO</div>
+          </div>
+          ${reviewed ? buildExplanation(q, idx) : '<div id="exp_'+idx+'" class="explanation">'+q.explanation+'</div>'}`;
+      } else {
+        const opts = ['a','b','c','d'];
+        const optLabels = { a:'A', b:'B', c:'C', d:'D' };
+        const optionsHTML = opts.map(opt => {
+          const sel = answered === opt;
+          const cls = sel ? 'selected' : '';
+          return `<label class="option-label ${cls}" onclick="selectOption(${idx},'${opt}',this)">
+            <input type="radio" name="q_${idx}" value="${opt}" ${sel?'checked':''}>
+            <div class="option-key">${optLabels[opt]}</div>
+            <span>${q[opt]}</span>
+          </label>`;
+        }).join('');
+        return `<div class="question-number">Questão ${idx+1}</div>
+          <div class="question-text">${q.question}</div>
+          <div class="options-grid">${optionsHTML}</div>
+          ${reviewed ? buildExplanation(q, idx) : '<div id="exp_'+idx+'" class="explanation">'+q.explanation+'</div>'}`;
+      }
+    }
+
+    function buildExplanation(q, idx) {
+      const userAns = (userAnswers[idx]||'').toLowerCase();
+      const correctAns = (q.answer||'').toLowerCase();
+      const correct = userAns === correctAns;
+      return `<div class="explanation show" style="border-color:${correct?'var(--green-600)':'var(--danger)'}">
+        ${correct ? '✅' : '❌'} <strong>Gabarito: ${q.answer?.toUpperCase()}</strong> | Sua resposta: ${(userAnswers[idx]||'Não respondida').toUpperCase()}<br><br>
+        ${q.explanation}
+      </div>`;
+    }
+
+    function selectCespe(idx, answer, el) {
+      if (reviewed) return;
+      const parent = el.closest('.question-card') || el.parentElement;
+      parent.querySelectorAll('.cespe-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      userAnswers[idx] = answer;
+      updateProgress();
+    }
+
+    function selectOption(idx, answer, el) {
+      if (reviewed) return;
+      const parent = el.closest('.question-card') || el.parentElement;
+      parent.querySelectorAll('.option-label').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      userAnswers[idx] = answer;
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const answered = Object.keys(userAnswers).length;
+      document.getElementById('answeredCount').textContent = answered;
+      const pct = allQuestions.length > 0 ? (answered / allQuestions.length) * 100 : 0;
+      document.getElementById('progressFill').style.width = pct + '%';
+    }
+
+    function updatePagination(page, totalPages) {
+      document.getElementById('prevBtn').disabled = page === 0;
+      document.getElementById('nextBtn').textContent = page === totalPages - 1 ? '✔ Finalizar' : 'Próxima →';
+      document.getElementById('nextBtn').onclick = page === totalPages - 1 ? submitExam : () => renderPage(page+1);
+      document.getElementById('prevBtn').onclick = () => renderPage(page-1);
+      const nums = document.getElementById('pageNumbers');
+      nums.innerHTML = '';
+      const showPages = Math.min(totalPages, 7);
+      for (let i = 0; i < showPages; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm ' + (i===page ? 'btn-primary' : 'btn-ghost');
+        btn.textContent = i+1;
+        btn.onclick = () => renderPage(i);
+        nums.appendChild(btn);
+      }
+    }
+
+    async function submitExam() {
+      // Bloqueia chamadas duplicadas (botão header + botão última página)
+      if (examSubmitted) return;
+      const unanswered = allQuestions.length - Object.keys(userAnswers).length;
+      if (unanswered > 0) {
+        if (!confirm(`Você ainda tem ${unanswered} questão(ões) sem resposta. Deseja finalizar mesmo assim?`)) return;
+      }
+      examSubmitted = true;
+      // Desabilita ambos os botões de finalizar
+      const headerBtn = document.getElementById('submitBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      if (headerBtn) { headerBtn.disabled = true; headerBtn.textContent = '⏳ Salvando...'; }
+      if (nextBtn) { nextBtn.disabled = true; }
+      try {
+        const answers = allQuestions.map((_, i) => userAnswers[i] || '');
+        const res = await fetch('/api/exam/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileId: examParams.fileId, style: examStyle, answers, questions: allQuestions })
+        });
+        const data = await res.json();
+        showScore(data);
+      } catch(e) {
+        examSubmitted = false; // permite tentar de novo em caso de erro de rede
+        if (headerBtn) { headerBtn.disabled = false; headerBtn.textContent = '✔ Finalizar Prova'; }
+        if (nextBtn) { nextBtn.disabled = false; }
+        alert('Erro ao salvar resultado. Tente novamente.');
+      }
+    }
+
+    function showScore(data) {
+      const pct = Math.round(data.score);
+      const deg = Math.round((pct / 100) * 360);
+      document.getElementById('scoreCircle').style.setProperty('--score-deg', deg + 'deg');
+      document.getElementById('scoreNumber').textContent = pct + '%';
+      document.getElementById('scoreTitle').textContent = pct >= 70 ? '🎉 Parabéns!' : pct >= 50 ? '👍 Bom resultado!' : '📚 Continue estudando!';
+      document.getElementById('scoreDesc').textContent = `Você acertou ${data.correct} de ${data.total} questões`;
+      document.getElementById('modalCorrect').textContent = data.correct;
+      document.getElementById('modalWrong').textContent = data.total - data.correct;
+      document.getElementById('scoreModal').classList.remove('hidden');
+    }
+
+    function reviewAnswers() {
+      reviewed = true;
+      document.getElementById('scoreModal').classList.add('hidden');
+      // Oculta botão de finalizar no modo revisão (já foi submetido)
+      const headerBtn = document.getElementById('submitBtn');
+      if (headerBtn) headerBtn.style.display = 'none';
+      renderPage(0);
+    }
+
+    init();
+  </script>
+<script src="/js/ui.js"></script></body>
+</html>

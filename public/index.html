@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de Provas Online - Login</title>
+  <meta name="description"
+    content="Gerador de Provas Online com Inteligência Artificial. Gere questões CESPE e Múltipla Escolha automaticamente.">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body {
+      background: var(--dark-900);
+      overflow: hidden;
+    }
+
+    /* Background */
+    .bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse at 15% 60%, rgba(21, 101, 192, 0.18) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 20%, rgba(0, 200, 83, 0.07) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 110%, rgba(13, 71, 161, 0.12) 0%, transparent 55%);
+    }
+
+    /* Subtle owl watermark behind left side */
+    .hero-watermark {
+      position: absolute;
+      bottom: -60px;
+      left: -60px;
+      width: 420px;
+      height: 420px;
+      background: url('/img/wbo_owl.png') center/cover no-repeat;
+      opacity: 0.06;
+      filter: blur(2px);
+      pointer-events: none;
+      border-radius: 50%;
+    }
+
+    .login-page {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Hero Side ── */
+    .hero-side {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 4rem 4rem 4rem 5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Vertical accent line */
+    .hero-side::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 15%;
+      bottom: 15%;
+      width: 1px;
+      background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.08), transparent);
+    }
+
+    /* WBO Logo */
+    .wbo-hero-logo {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+
+    .wbo-hero-logo img {
+      width: 80px;
+      height: 80px;
+      border-radius: 18px;
+      object-fit: cover;
+      box-shadow: 0 8px 32px rgba(21, 101, 192, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.07);
+      image-rendering: -webkit-optimize-contrast;
+    }
+
+    .wbo-hero-logo-text .brand {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: var(--white);
+    }
+
+    .wbo-hero-logo-text .tagline {
+      font-size: 0.7rem;
+      color: var(--gray-400);
+      font-weight: 400;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 1px;
+    }
+
+    .hero-title {
+      font-size: clamp(2rem, 3.2vw, 2.8rem);
+      margin-bottom: 1rem;
+      line-height: 1.1;
+      font-weight: 900;
+    }
+
+    .hero-description {
+      font-size: 0.93rem;
+      color: var(--gray-400);
+      line-height: 1.75;
+      margin-bottom: 2.5rem;
+      max-width: 400px;
+    }
+
+    .feature-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.875rem;
+      color: var(--gray-300);
+    }
+
+    .feature-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--blue-400);
+      flex-shrink: 0;
+    }
+
+    .author-tag {
+      position: absolute;
+      bottom: 2rem;
+      left: 5rem;
+      font-size: 0.7rem;
+      color: var(--gray-500);
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Auth Side ── */
+    .auth-side {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 4rem 3rem 3rem;
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    .auth-box {
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .auth-box h2 {
+      margin-bottom: 0.4rem;
+      font-size: 1.6rem;
+    }
+
+    .auth-box .subtitle {
+      color: var(--gray-400);
+      font-size: 0.875rem;
+      margin-bottom: 2.25rem;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1.25rem 0;
+      color: var(--gray-500);
+      font-size: 0.8rem;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .alert {
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .login-page {
+        grid-template-columns: 1fr;
+        overflow: auto;
+      }
+
+      .hero-side {
+        display: none;
+      }
+
+      body {
+        overflow: auto;
+      }
+
+      .auth-side {
+        padding: 2rem 1.5rem;
+        min-height: 100vh;
+        align-items: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg-canvas"></div>
+
+  <div class="login-page">
+    <!-- Hero Side -->
+    <div class="hero-side">
+      <div class="hero-watermark"></div>
+
+      <!-- Logo -->
+      <div class="wbo-hero-logo">
+        <img src="/img/wbo_owl.png" alt="WBO" onerror="this.style.display='none'">
+        <div class="wbo-hero-logo-text">
+          <div class="brand">WBO Tecnologia</div>
+          <div class="tagline">Sistema Gerador de Provas</div>
+        </div>
+      </div>
+
+      <h1 class="hero-title">
+        Gerador de<br>
+        <span class="text-gradient">Provas Online</span>
+      </h1>
+      <p class="hero-description">
+        Envie seu documento e a Inteligência Artificial gera
+        automaticamente questões CESPE ou Múltipla Escolha
+        para você dominar o conteúdo completo.
+      </p>
+
+      <div class="feature-list">
+        <div class="feature-item">
+          <div class="feature-dot"></div>10 a 10.000 questões por arquivo
+        </div>
+        <div class="feature-item">
+          <div class="feature-dot"></div>Estilos CESPE e Múltipla Escolha A/B/C/D
+        </div>
+        <div class="feature-item">
+          <div class="feature-dot"></div>Pontuação, ranking e histórico automático
+        </div>
+        <div class="feature-item">
+          <div class="feature-dot"></div>Suporte a PDF, TXT e DOCX
+        </div>
+        <div class="feature-item">
+          <div class="feature-dot"></div>Banco de revisão com questões erradas
+        </div>
+      </div>
+
+      <div class="author-tag">Willian Batista Oliveira</div>
+    </div>
+
+    <!-- Auth Side -->
+    <div class="auth-side">
+      <div class="auth-box">
+        <div class="tabs" id="authTabs">
+          <button class="tab-btn active" data-tab="login">Entrar</button>
+          <button class="tab-btn" data-tab="register">Cadastrar</button>
+        </div>
+
+        <div style="margin-top: 1.5rem;" id="alertArea"></div>
+
+        <!-- Login Form -->
+        <div id="loginTab">
+          <h2 style="margin-top:1.5rem">Bem-vindo de volta! 👋</h2>
+          <p class="subtitle">Entre com seu CPF para acessar suas provas</p>
+          <form id="loginForm">
+            <div class="form-group">
+              <label class="form-label">CPF</label>
+              <input type="text" class="form-input" id="loginCPF" placeholder="000.000.000-00" maxlength="14" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full btn-lg">
+              <span>Entrar</span>
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+                <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </button>
+          </form>
+          <p class="text-center text-muted mt-4">Não tem conta? <a href="#" onclick="switchTab('register')"
+              style="color:var(--blue-400)">Criar cadastro</a></p>
+        </div>
+
+        <!-- Register Form -->
+        <div id="registerTab" class="hidden">
+          <h2 style="margin-top:1.5rem">Criar conta 🚀</h2>
+          <p class="subtitle">Seu nome e CPF são o único acesso necessário</p>
+          <form id="registerForm">
+            <div class="form-group">
+              <label class="form-label">Nome completo</label>
+              <input type="text" class="form-input" id="regName" placeholder="Seu nome completo" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">CPF</label>
+              <input type="text" class="form-input" id="regCPF" placeholder="000.000.000-00" maxlength="14" required>
+            </div>
+            <button type="submit" class="btn btn-success btn-full btn-lg">
+              <span>Criar conta</span>
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              </svg>
+            </button>
+          </form>
+          <p class="text-center text-muted mt-4">Já tem conta? <a href="#" onclick="switchTab('login')"
+              style="color:var(--blue-400)">Fazer login</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // CPF Mask
+    function maskCPF(v) {
+      v = v.replace(/\D/g, '');
+      if (v.length <= 3) return v;
+      if (v.length <= 6) return v.slice(0, 3) + '.' + v.slice(3);
+      if (v.length <= 9) return v.slice(0, 3) + '.' + v.slice(3, 6) + '.' + v.slice(6);
+      return v.slice(0, 3) + '.' + v.slice(3, 6) + '.' + v.slice(6, 9) + '-' + v.slice(9, 11);
+    }
+
+    document.querySelectorAll('#loginCPF, #regCPF').forEach(el => {
+      el.addEventListener('input', e => { e.target.value = maskCPF(e.target.value); });
+    });
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+      document.getElementById('loginTab').classList.toggle('hidden', tab !== 'login');
+      document.getElementById('registerTab').classList.toggle('hidden', tab !== 'register');
+      clearAlert();
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    function showAlert(msg, type = 'error') {
+      const area = document.getElementById('alertArea');
+      area.innerHTML = `<div class="alert alert-${type}"><span>${type === 'error' ? '⚠️' : '✅'}</span> ${msg}</div>`;
+    }
+    function clearAlert() { document.getElementById('alertArea').innerHTML = ''; }
+
+    // Check session
+    fetch('/api/auth/me').then(r => r.json()).then(data => {
+      if (data.id) window.location.href = '/dashboard';
+    }).catch(() => { });
+
+    // Login
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearAlert();
+      const btn = e.target.querySelector('button');
+      btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px"></div>';
+      const cpf = document.getElementById('loginCPF').value;
+      try {
+        const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cpf }) });
+        const data = await res.json();
+        if (!res.ok) { showAlert(data.error); return; }
+        showAlert('Login realizado! Redirecionando...', 'success');
+        setTimeout(() => window.location.href = '/dashboard', 800);
+      } catch { showAlert('Erro de conexão. Tente novamente.'); }
+      finally { btn.disabled = false; btn.innerHTML = '<span>Entrar</span><svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+    });
+
+    // Register
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearAlert();
+      const btn = e.target.querySelector('button');
+      btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px"></div>';
+      const name = document.getElementById('regName').value;
+      const cpf = document.getElementById('regCPF').value;
+      try {
+        const res = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, cpf }) });
+        const data = await res.json();
+        if (!res.ok) { showAlert(data.error); return; }
+        showAlert('Cadastro realizado! Redirecionando...', 'success');
+        setTimeout(() => window.location.href = '/dashboard', 800);
+      } catch { showAlert('Erro de conexão. Tente novamente.'); }
+      finally { btn.disabled = false; btn.innerHTML = '<span>Criar conta</span><svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'; }
+    });
+  </script>
+  <script src="/js/ui.js"></script>
+</body>
+
+</html>
