@@ -3,114 +3,84 @@
 ## Pré-requisitos
 - Conta em [github.com](https://github.com) (gratuita)
 - Conta em [render.com](https://render.com) (gratuita)
+- Conta em [neon.tech](https://neon.tech) (banco de dados gratuito)
 
 ---
 
-## Passo 1 — Subir o código no GitHub
+## Passo 1 — Criar banco de dados no Neon (gratuito, persistente)
 
-Abra o terminal PowerShell **na pasta do projeto** e execute:
+1. Acesse [neon.tech](https://neon.tech) e crie uma conta
+2. Clique em **"Create Project"**
+3. Nome: `gerador-de-provas` → clique **Create**
+4. Na tela seguinte, copie a **Connection String** que começa com:
+   ```
+   postgresql://usuario:senha@host.neon.tech/nomedobanco?sslmode=require
+   ```
+   > ⚠️ Guarde essa string — você vai usá-la no próximo passo.
+
+---
+
+## Passo 2 — Subir o código no GitHub
 
 ```powershell
-# Inicializa o repositório Git
 git init
 git add .
 git commit -m "primeiro commit - WBO Tecnologia"
-
-# Conecta ao seu repositório do GitHub
-# (crie o repositório VAZIO no github.com primeiro, depois use o link abaixo)
 git remote add origin https://github.com/SEU_USUARIO/gerador-de-provas.git
+git branch -M main
 git push -u origin main
 ```
 
-> ⚠️ **IMPORTANTE:** Crie o repositório no GitHub como **privado** para proteger seu código. O arquivo `.env` já está no `.gitignore` e não será enviado.
-
 ---
 
-## Passo 2 — Criar o serviço no Render
+## Passo 3 — Criar o serviço no Render
 
 1. Acesse [dashboard.render.com](https://dashboard.render.com)
-2. Clique em **"New → Web Service"**
-3. Conecte ao seu repositório GitHub (`gerador-de-provas`)
-4. Configure:
+2. **New → Web Service** → conecte o repositório GitHub
+3. Configure:
 
 | Campo | Valor |
 |-------|-------|
-| **Name** | `gerador-de-provas` |
 | **Runtime** | `Node` |
 | **Build Command** | `npm install` |
 | **Start Command** | `node server.js` |
 | **Plan** | `Free` |
-| **Region** | `Oregon (US West)` |
 
-
-Push realizado com sucesso! O código está no GitHub agora.
-
-O que aconteceu: O Git criou o branch local como master (padrão antigo), mas você tentou publicar em main. O comando git branch -M main renomeou o branch antes do push.
-
-Próximo passo — deploy no Render:
-
-Acesse dashboard.render.com
-New → Web Service → conecte o repositório willian-cell/Gerador-de-Provas-online
-Configure:
-Build: npm install | Start: node server.js
-Na aba Environment, adicione as variáveis:
-GROQ_API_KEY = sua chave
-SESSION_SECRET = string aleatória longa
-DATA_DIR = /var/data
-Na aba Disks → adicione disco wbo-data em /var/data (1 GB)
-Clique Create Web Service → aguarde 2–5 min → URL pública pronta! 
 ---
 
-## Passo 3 — Variáveis de Ambiente
+## Passo 4 — Variáveis de Ambiente no Render
 
-Na aba **"Environment"** do serviço, adicione:
+Na aba **"Environment"** adicione:
 
 | Variável | Valor |
 |----------|-------|
-| `GROQ_API_KEY` | `gsk_VL8K...` (sua chave real) |
-| `SESSION_SECRET` | qualquer string longa e aleatória |
-| `DATA_DIR` | `/var/data` |
+| `DATABASE_URL` | *(string de conexão do Neon)* |
+| `GROQ_API_KEY` | *(sua chave Groq)* |
+| `SESSION_SECRET` | *(string aleatória longa)* |
+| `NODE_VERSION` | `20` |
 
-> 🔴 **ATENÇÃO:** Nunca compartilhe sua `GROQ_API_KEY`. Use uma string forte e única no `SESSION_SECRET`.
-
----
-
-## Passo 4 — Disco Persistente (para SQLite + uploads)
-
-O plano **Free não inclui disco persistente**. Existem 2 opções:
-
-### Opção A — Render Disk ✅ Recomendado (US$ 0.25/GB/mês ≈ R$ 1,50/mês)
-
-Na aba **"Disks"** do serviço:
-
-- **Name:** `wbo-data`
-- **Mount Path:** `/var/data`
-- **Size:** `1 GB`
-
-### Opção B — Plano Free sem persistência
-
-> ⚠️ **AVISO:** No plano gratuito sem disco, o banco de dados e os arquivos enviados **serão apagados a cada redeploy**. Funciona para testes, mas não para uso real contínuo.
+> 🔴 Nunca compartilhe `DATABASE_URL` ou `GROQ_API_KEY`.
 
 ---
 
 ## Passo 5 — Deploy
 
 1. Clique em **"Create Web Service"**
-2. Aguarde o build (2–5 minutos)
-3. Render vai exibir a URL pública: `https://gerador-de-provas.onrender.com`
+2. Aguarde o build (2–5 min)
+3. URL pública: `https://gerador-de-provas.onrender.com`
 
-> 💡 No plano gratuito, o serviço **hiberna após 15 min de inatividade**. O primeiro acesso após a hibernação leva \~30 segundos para acordar.
+> 💡 No plano gratuito, o serviço **hiberna após 15 min** de inatividade.
+> Use [UptimeRobot](https://uptimerobot.com) para manter sempre acordado (gratuito).
 
 ---
 
 ## Atualizações Futuras
 
 ```powershell
-# A cada mudança, basta:
 git add .
 git commit -m "descrição da mudança"
 git push
-# → Render detecta e faz deploy automaticamente
+# → Render faz redeploy automaticamente
 ```
 
 ---
@@ -119,6 +89,6 @@ git push
 
 | Plataforma | Prós | Contra |
 |-----------|------|--------|
-| **Railway** | Simples, 500h/mês grátis | Precisa de cartão para ativar |
-| **Fly.io** | Persistência gratuita, mais rápido | Configuração mais complexa |
-| **VPS DigitalOcean** | Controle total, R$ 30/mês | Requer configuração Linux |
+| **Railway** | Simples, 500h/mês grátis | Precisa de cartão |
+| **Fly.io** | Mais rápido, volumes grátis | Configuração mais complexa |
+| **VPS DigitalOcean** | Controle total | R$ 30/mês, requer Linux |
