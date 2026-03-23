@@ -1,8 +1,8 @@
-const sqlite3 = require('sqlite3').verbose();
+const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-// Use DATA_DIR env (Render persistent disk) or fall back to local ./data/
+// Usa DATA_DIR (disco Render) ou fallback para ./data/
 let dataDir = process.env.DATA_DIR
   ? path.join(process.env.DATA_DIR)
   : path.join(__dirname, 'data');
@@ -10,29 +10,30 @@ let dataDir = process.env.DATA_DIR
 try {
   fs.mkdirSync(dataDir, { recursive: true });
 } catch (e) {
-  // DATA_DIR not writable (disk not yet mounted) — fall back
-  console.warn(`[DB] DATA_DIR "${dataDir}" not writable: ${e.code}. Falling back to ./data/`);
+  console.warn(`[DB] DATA_DIR "${dataDir}" não gravável (${e.code}). Usando ./data/`);
   dataDir = path.join(__dirname, 'data');
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-
 const dbPath = path.join(dataDir, 'provas.db');
-const db = new sqlite3.Database(dbPath);
+console.log(`[DB] Banco em: ${dbPath}`);
 
-// Enable WAL mode and foreign keys
-db.serialize(() => {
-  db.run('PRAGMA journal_mode = WAL');
-  db.run('PRAGMA foreign_keys = ON');
+const db = new Database(dbPath);
 
-  db.run(`CREATE TABLE IF NOT EXISTS users (
+// Configurações de performance e segurança
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+
+// Criação das tabelas
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     cpf TEXT UNIQUE NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
+  );
 
-  db.run(`CREATE TABLE IF NOT EXISTS files (
+  CREATE TABLE IF NOT EXISTS files (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     filename TEXT NOT NULL,
@@ -40,9 +41,9 @@ db.serialize(() => {
     filesize INTEGER DEFAULT 0,
     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
-  )`);
+  );
 
-  db.run(`CREATE TABLE IF NOT EXISTS exams (
+  CREATE TABLE IF NOT EXISTS exams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     file_id INTEGER NOT NULL,
@@ -53,18 +54,18 @@ db.serialize(() => {
     completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (file_id) REFERENCES files(id)
-  )`);
+  );
 
-  db.run(`CREATE TABLE IF NOT EXISTS questions (
+  CREATE TABLE IF NOT EXISTS questions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     file_id INTEGER NOT NULL,
     style TEXT NOT NULL,
     question_json TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (file_id) REFERENCES files(id)
-  )`);
+  );
 
-  db.run(`CREATE TABLE IF NOT EXISTS review_questions (
+  CREATE TABLE IF NOT EXISTS review_questions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     file_id INTEGER NOT NULL,
@@ -75,20 +76,36 @@ db.serialize(() => {
     UNIQUE(user_id, question_hash),
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (file_id) REFERENCES files(id)
-  )`);
-});
+  );
+`);
 
-// Promisified helpers
-db.getAsync = (sql, params = []) => new Promise((resolve, reject) => {
-  db.get(sql, params, (err, row) => err ? reject(err) : resolve(row));
-});
+console.log('[DB] Tabelas verificadas/criadas com sucesso.');
 
-db.allAsync = (sql, params = []) => new Promise((resolve, reject) => {
-  db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows));
-});
+// ──────── Helpers promisificados (mesma API dos arquivos de rota) ────────
 
-db.runAsync = (sql, params = []) => new Promise((resolve, reject) => {
-  db.run(sql, params, function(err) { err ? reject(err) : resolve({ lastID: this.lastID, changes: this.changes }); });
-});
+db.getAsync = (sql, params = []) => {
+  try {
+    return Promise.resolve(db.prepare(sql).get(params));
+  } catch (err) {
+    return Promise.reject(err);
+  }
+};
+
+db.allAsync = (sql, params = []) => {
+  try {
+    return Promise.resolve(db.prepare(sql).all(params));
+  } catch (err) {
+    return Promise.reject(err);
+  }
+};
+
+db.runAsync = (sql, params = []) => {
+  try {
+    const result = db.prepare(sql).run(params);
+    return Promise.resolve({ lastID: result.lastInsertRowid, changes: result.changes });
+  } catch (err) {
+    return Promise.reject(err);
+  }
+};
 
 module.exports = db;
