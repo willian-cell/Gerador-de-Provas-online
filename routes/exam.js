@@ -51,8 +51,26 @@ function getTextChunks(text) {
   return chunks;
 }
 
+// ---------- Detect subject for better context ----------
+async function getSubject(text) {
+  try {
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ 
+        role: 'user', 
+        content: `Analise as primeiras 1000 palavras deste texto e identifique o ASSUNTO PRINCIPAL (ex: Direito Administrativo, Medicina, Engenharia Civil). Retorne APENAS o nome do assunto em até 4 palavras.\n\nTEXTO:\n${text.substring(0, 4000)}` 
+      }],
+      temperature: 0.1,
+      max_tokens: 20
+    });
+    return response.choices[0].message.content.trim().replace(/[^a-zA-Z\sÀ-ÿ]/g, '');
+  } catch {
+    return 'Assunto Geral';
+  }
+}
+
 // ---------- Build variety-aware Groq prompt ----------
-function buildPrompt(style, count, startNum, textChunk, existingStatements) {
+function buildPrompt(style, count, startNum, textChunk, existingStatements, subject) {
   const existingBlock = existingStatements.length > 0
     ? `\n\nQUESTÕES JÁ GERADAS (NÃO REPITA ESTES TEMAS/AFIRMAÇÕES):\n${existingStatements.slice(-80).map((s, i) => `${i + 1}. ${s}`).join('\n')}\n`
     : '';
@@ -65,62 +83,78 @@ function buildPrompt(style, count, startNum, textChunk, existingStatements) {
     'sequências históricas ou procedimentais',
     'consequências e implicações de normas ou ações',
     'requisitos, condições e prazos',
-    'vedações, proibições e restrições',
+    'questões de concursos reais (viva sua base de conhecimento de provas anteriores)',
     'responsabilidades e competências',
     'penalidades e sanções previstas',
+    'jurisprudência e entendimentos de tribunais',
+    'detalhes técnicos e minúcias do texto',
   ];
+
+  const complexities = ['baixa', 'média', 'alta'];
+  
   const angle = variety[startNum % variety.length];
+  const complexity = complexities[Math.floor(startNum / count) % complexities.length];
+
+  const realExamInstruction = `Se o assunto (**${subject}**) for comum em concursos públicos (CESPE, FGV, OAB, etc.), inclua pelo menos 20% de questões baseadas em PROVAS REAIS anteriores. 
+Para essas questões, comece o enunciado com "[QUESTÃO REAL: Banca/Órgão/Ano]" e use seu conhecimento interno para ser fiel ao estilo e conteúdo das provas originais que tratam deste assunto.`;
 
   if (style === 'cespe') {
-    return `Você é um examinador especialista em concursos públicos (CESPE/CEBRASPE) com foco em elaborar questões profundas, precisas e bem contextualizadas.
+    return `Você é um examinador de elite especializado em concursos públicos (estilo CESPE/CEBRASPE).
+Assunto detectado: **${subject}**.
+Sua missão é elaborar questões de **${complexity} complexidade** a partir do texto base.
 
-IMPORTANTE: Escreva TUDO em Português do Brasil — enunciados, afirmações e explicações.
+INSTRUÇÕES CRÍTICAS:
+1. Escreva TUDO em Português do Brasil.
+2. Cada questão deve ser uma afirmação completa, bem escrita e contextualizada.
+3. **Gabarito Indiscutível**: O erro ou acerto deve ser baseado EXATAMENTE no texto ou em fundamentos consolidados do assunto.
+4. **Variedade**: Foque especialmente em: **${angle}**.
+5. ${realExamInstruction}
+6. GERE EXATAMENTE ${count} QUESTÕES.
+7. **Explicação Educativa**: Forneça uma fundamentação acadêmica/legal para cada questão.
 
-Sua missão: gerar EXATAMENTE ${count} questões NOVAS e INÉDITAS no estilo CESPE a partir do texto.
-- Cada questão é uma AFIRMAÇÃO completa e bem elaborada (mínimo 2 frases quando necessário) sobre o conteúdo.
-- Explore ângulos variados. Neste lote, foque especialmente em: **${angle}**.
-- Misture afirmações corretas e incorretas (meta: ~50% certo, ~50% errado).
-- As afirmações incorretas devem conter erros sutis baseados no conteúdo real.
-- As explicações devem ser detalhadas e educativas em Português, citando trechos do texto quando relevante.
-- Numere começando em ${startNum}.
+Numere começando em ${startNum}.
 ${existingBlock}
-Retorne SOMENTE um JSON array válido, sem texto extra:
-[{"id":${startNum},"statement":"afirmação completa e contextualizada","answer":"certo","explanation":"explicação detalhada em português com base no texto"}, ...]
 
-TEXTO:
+Retorne SOMENTE um JSON array de objetos:
+[{"id":${startNum},"statement":"texto da afirmação","answer":"certo","explanation":"fundamentação detalhada"}, ...]
+
+TEXTO DE BASE:
 ${textChunk}`;
   } else {
-    return `Você é um examinador especialista em concursos públicos com foco em múltipla escolha profunda e bem contextualizada.
+    return `Você é um examinador de elite especializado em questões de múltipla escolha para concursos e exames.
+Assunto detectado: **${subject}**.
+Sua missão é elaborar questões de **${complexity} complexidade** a partir do texto base.
 
-IMPORTANTE: Escreva TUDO em Português do Brasil — enunciados, alternativas e explicações.
+INSTRUÇÕES CRÍTICAS:
+1. Escreva TUDO em Português do Brasil.
+2. Cada enunciado deve ser completo e conter o contexto necessário.
+3. **Gabarito Claro e Único**: Somente uma alternativa correta. Distratores plausíveis.
+4. **Variedade**: Foque especialmente em: **${angle}**.
+5. ${realExamInstruction}
+6. GERE EXATAMENTE ${count} QUESTÕES com 4 alternativas (A, B, C, D).
+7. **Explicação Educativa**: Detalhe por que a correta está certa.
 
-Sua missão: gerar EXATAMENTE ${count} questões NOVAS e INÉDITAS de múltipla escolha (A, B, C, D) a partir do texto.
-- Cada questão deve ter enunciado completo com contexto suficiente para ser respondida.
-- Explore ângulos variados. Neste lote, foque especialmente em: **${angle}**.
-- Os distratores (alternativas erradas) devem ser plausíveis e baseados no conteúdo.
-- As explicações devem ser educativas em Português e citar o fundamento correto.
-- Distribua as respostas corretas entre A, B, C e D de forma equilibrada.
-- Numere começando em ${startNum}.
+Numere começando em ${startNum}.
 ${existingBlock}
-Retorne SOMENTE um JSON array válido, sem texto extra:
-[{"id":${startNum},"question":"enunciado","a":"texto A","b":"texto B","c":"texto C","d":"texto D","answer":"a","explanation":"explicação detalhada em português"}, ...]
 
-TEXTO:
+Retorne SOMENTE um JSON array de objetos:
+[{"id":${startNum},"question":"enunciado","a":"opção A","b":"opção B","c":"opção C","d":"opção D","answer":"a","explanation":"fundamentação detalhada"}, ...]
+
+TEXTO DE BASE:
 ${textChunk}`;
   }
 }
 
 // ---------- Generate one batch from Groq ----------
-async function generateBatch(textChunks, style, count, startNum, existingStatements) {
-  // Rotate through text chunks to increase coverage on large files
+async function generateBatch(textChunks, style, count, startNum, existingStatements, subject) {
   const chunkIndex = Math.floor(startNum / 50) % textChunks.length;
   const textChunk = textChunks[chunkIndex];
-  const prompt = buildPrompt(style, count, startNum, textChunk, existingStatements);
+  const prompt = buildPrompt(style, count, startNum, textChunk, existingStatements, subject);
 
   const response = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
     messages: [{ role: 'user', content: prompt }],
-    temperature: 0.85,      // higher temp = more variety
+    temperature: 0.85,
     max_tokens: 8000,
   });
 
@@ -136,81 +170,93 @@ function getQuestionKey(q) {
   return (q.statement || q.question || '').substring(0, 80).toLowerCase().trim();
 }
 
+// ---------- Path Resolution Helper ----------
+const UPLOADS_BASE = process.env.DATA_DIR
+  ? path.join(process.env.DATA_DIR, 'uploads')
+  : path.join(__dirname, '..', 'uploads');
+
+function resolveFilePath(file) {
+  if (fs.existsSync(file.filepath)) return file.filepath;
+  
+  // Fallback: Check in local uploads folder using userId/filename
+  const fileName = path.basename(file.filepath);
+  const localPath = path.join(UPLOADS_BASE, String(file.user_id), fileName);
+  if (fs.existsSync(localPath)) return localPath;
+  
+  return file.filepath; // Return original and let it fail if not found
+}
+
 // ---------- POST /api/exam/generate ----------
 router.post('/generate', requireAuth, async (req, res) => {
   const { fileId, style, totalQuestions } = req.body;
   if (!fileId || !style || !totalQuestions) return res.status(400).json({ error: 'Parâmetros incompletos.' });
-  const total = Math.min(Math.max(parseInt(totalQuestions), 10), 10000);
+  const total = Math.min(Math.max(parseInt(totalQuestions), 10), 1000); // capped at 1000 as per user request
   if (!['cespe', 'multipla'].includes(style)) return res.status(400).json({ error: 'Estilo inválido.' });
 
   const file = await db.getAsync('SELECT * FROM files WHERE id = ? AND user_id = ?', [fileId, req.session.userId]);
   if (!file) return res.status(404).json({ error: 'Arquivo não encontrado.' });
 
   try {
-    const text = await extractText(file.filepath);
+    const absolutePath = resolveFilePath(file);
+    const text = await extractText(absolutePath);
     if (!text || text.trim().length < 100) return res.status(400).json({ error: 'Arquivo sem conteúdo suficiente.' });
 
     const textChunks = getTextChunks(text);
 
-    // Load existing pool from DB
+    // Load existing pool from DB (consistent order by id)
     const poolRows = await db.allAsync(
-      'SELECT question_json FROM questions WHERE file_id = ? AND style = ? ORDER BY RANDOM()',
+      'SELECT question_json FROM questions WHERE file_id = ? AND style = ? ORDER BY id ASC',
       [fileId, style]
     );
     let pool = poolRows.map(r => JSON.parse(r.question_json));
 
-    // If pool has enough → shuffle and return without calling Groq again
+    // If pool has enough → return immediately
     if (pool.length >= total) {
-      const selected = shuffle(pool).slice(0, total).map((q, i) => ({ ...q, id: i + 1 }));
-      return res.json({ success: true, questions: selected, fromCache: true });
+      const selected = pool.slice(0, total).map((q, i) => ({ ...q, id: i + 1 }));
+      return res.json({ success: true, questions: selected, finished: true });
     }
 
-    // Need to generate more questions to fill the gap
-    const needed = total - pool.length;
+    // Identify subject if pool is empty or small (to improve batch context)
+    const subject = await getSubject(text);
+
+    // Need to generate more questions. Generate ONLY ONE batch (max 50) per call for modular delivery.
     const existingStatements = pool.map(getQuestionKey);
     const BATCH_SIZE = 50;
-    const newQuestions = [];
+    const batchCount = Math.min(BATCH_SIZE, total - pool.length);
+    const startNum = pool.length + 1;
 
-    while (newQuestions.length < needed) {
-      const batchCount = Math.min(BATCH_SIZE, needed - newQuestions.length);
-      const startNum = pool.length + newQuestions.length + 1;
-      const allExisting = [...existingStatements, ...newQuestions.map(getQuestionKey)];
+    const batch = await generateBatch(textChunks, style, batchCount, startNum, existingStatements, subject);
 
-      try {
-        const batch = await generateBatch(textChunks, style, batchCount, startNum, allExisting);
-
-        // Deduplicate within batch and against existing pool
-        const existingKeys = new Set(allExisting);
-        const unique = batch.filter(q => {
-          const key = getQuestionKey(q);
-          if (existingKeys.has(key)) return false;
-          existingKeys.add(key);
-          return true;
-        });
-
-        newQuestions.push(...unique.slice(0, batchCount));
-      } catch (batchErr) {
-        if (pool.length + newQuestions.length === 0) throw batchErr;
-        break; // return what we have
+    // Deduplicate against pool
+    const existingKeys = new Set(existingStatements);
+    const unique = [];
+    for (const q of batch) {
+      const key = getQuestionKey(q);
+      if (!existingKeys.has(key)) {
+        unique.push(q);
+        existingKeys.add(key);
       }
-
-      if (newQuestions.length >= needed) break;
-      await new Promise(r => setTimeout(r, 400));
     }
 
-    // Persist new questions to pool
-    for (const q of newQuestions) {
+    // Persist new batch to pool
+    for (const q of unique) {
       await db.runAsync(
         'INSERT INTO questions (file_id, style, question_json) VALUES (?, ?, ?)',
         [fileId, style, JSON.stringify(q)]
-      ).catch(() => {}); // ignore constraint errors
+      ).catch(() => {});
     }
 
-    // Combine pool + new, shuffle, slice, renumber
-    const combined = shuffle([...pool, ...newQuestions]);
-    const selected = combined.slice(0, total).map((q, i) => ({ ...q, id: i + 1 }));
+    // Combine pool + NEW questions only
+    const updatedPool = [...pool, ...unique];
+    const selected = updatedPool.slice(0, total).map((q, i) => ({ ...q, id: i + 1 }));
 
-    res.json({ success: true, questions: selected, fromCache: false });
+    res.json({ 
+      success: true, 
+      questions: selected, 
+      count: selected.length,
+      subject: subject,
+      finished: selected.length >= total 
+    });
   } catch (err) {
     console.error('Erro ao gerar questões:', err);
     res.status(500).json({ error: 'Erro ao gerar questões: ' + err.message });

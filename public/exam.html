@@ -135,6 +135,12 @@
       examStyle = examParams.style;
       document.getElementById('examStyleLabel').textContent = examStyle === 'cespe' ? 'Estilo CESPE / CEBRASPE' : 'Múltipla Escolha A/B/C/D';
       document.getElementById('examStyleBadge').textContent = examStyle === 'cespe' ? 'CESPE' : 'Múltipla Escolha';
+      
+      loadMoreLoop(); // Start loading questions in batches
+      document.getElementById('submitBtn').addEventListener('click', submitExam);
+    }
+
+    async function loadMoreLoop() {
       try {
         const res = await fetch('/api/exam/generate', {
           method: 'POST',
@@ -142,14 +148,37 @@
           body: JSON.stringify(examParams)
         });
         const data = await res.json();
-        if (!res.ok) { alert('Erro: ' + data.error); window.location.href='/dashboard'; return; }
+        if (!res.ok) { 
+           if (allQuestions.length === 0) { alert('Erro: ' + data.error); window.location.href='/dashboard'; }
+           return; 
+        }
+
+        const isFirstLoad = allQuestions.length === 0;
         allQuestions = data.questions;
         document.getElementById('totalQNum').textContent = allQuestions.length;
-        document.getElementById('loadingOverlay').classList.add('hidden');
-        document.getElementById('examContainer').classList.remove('hidden');
-        renderPage(0);
-        document.getElementById('submitBtn').addEventListener('click', submitExam);
-      } catch(e) { alert('Erro ao gerar questões. Verifique o arquivo e tente novamente.'); window.location.href='/dashboard'; }
+        
+        if (isFirstLoad) {
+          document.getElementById('loadingOverlay').classList.add('hidden');
+          document.getElementById('examContainer').classList.remove('hidden');
+          renderPage(0);
+        } else {
+          // If we are on the last page and new questions arrived, we might want to update pagination
+          // Otherwise, just updating the count is enough for now.
+          const totalPages = Math.ceil(allQuestions.length / QUESTIONS_PER_PAGE);
+          updatePagination(currentPage, totalPages);
+        }
+
+        if (!data.finished) {
+          // Update loader text if it's still visible or show a small toast for "loading more..."
+          document.getElementById('loadingMsg').textContent = `Geradas ${allQuestions.length} de ${examParams.totalQuestions} questões. Continue respondendo!`;
+          setTimeout(loadMoreLoop, 400); // Faster loop as backend is now modular
+        } else {
+          // Finished generating everything
+          console.log("Carga de questões concluída:", allQuestions.length);
+        }
+      } catch(e) { 
+        console.error("Erro no streaming de questões:", e);
+      }
     }
 
     function renderPage(page) {

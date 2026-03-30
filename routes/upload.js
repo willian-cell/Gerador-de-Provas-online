@@ -39,12 +39,15 @@ const upload = multer({
 router.post('/', requireAuth, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
   try {
+    // Save the full path as provided by multer
+    const filePath = req.file.path;
+    
     const result = await db.runAsync(
       'INSERT INTO files (user_id, filename, filepath, filesize) VALUES (?, ?, ?, ?)',
-      [req.session.userId, req.file.originalname, req.file.path, req.file.size]
+      [req.session.userId, req.file.originalname, filePath, req.file.size]
     );
     res.json({ success: true, file: { id: result.lastID, filename: req.file.originalname, filesize: req.file.size } });
-  } catch (err) { res.status(500).json({ error: 'Erro ao salvar arquivo.' }); }
+} catch (err) { res.status(500).json({ error: 'Erro ao salvar arquivo.' }); }
 });
 
 router.get('/files', requireAuth, async (req, res) => {

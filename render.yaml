@@ -11,10 +11,12 @@ services:
         value: production
       - key: SESSION_SECRET
         generateValue: true
-      - key: GROQ_API_KEY
-        sync: false        # you will paste this manually in Render dashboard
       - key: DATA_DIR
         value: /var/data
+      - key: DATABASE_URL
+        sync: false        # paste from Neon.tech
+      - key: GROQ_API_KEY
+        sync: false        # your Groq key
     disk:
       name: wbo-data
       mountPath: /var/data
