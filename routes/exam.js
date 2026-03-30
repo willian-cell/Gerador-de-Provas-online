@@ -176,33 +176,26 @@ const UPLOADS_BASE = process.env.DATA_DIR
   : path.join(__dirname, '..', 'uploads');
 
 function resolveFilePath(file) {
-  console.log(`[DEBUG] Tentando resolver arquivo: ${file.filepath}`);
-  console.log(`[DEBUG] UPLOADS_BASE atual: ${UPLOADS_BASE}`);
+  const storedPath = file.filepath;
+  console.log(`[DEBUG] Tentando resolver arquivo: ${storedPath}`);
   
-  if (fs.existsSync(file.filepath)) {
-    console.log(`[DEBUG] Encontrado no caminho original.`);
-    return file.filepath;
-  }
-  
-  // Fallback 1: Check in local uploads folder using userId/filename
-  const fileName = path.basename(file.filepath);
+  if (fs.existsSync(storedPath)) return storedPath;
+
+  // Portable Filename Extraction (handles both / and \ regardless of host OS)
+  const fileName = storedPath.split(/[\\\/]/).pop();
   const localPath = path.join(UPLOADS_BASE, String(file.user_id), fileName);
-  console.log(`[DEBUG] Tentando fallback local: ${localPath}`);
   
+  console.log(`[DEBUG] Filename extraído: ${fileName}`);
+  console.log(`[DEBUG] Buscando em: ${localPath}`);
+
   if (fs.existsSync(localPath)) {
-    console.log(`[DEBUG] Encontrado via fallback local.`);
+    console.log(`[DEBUG] Sucesso! Arquivo encontrado via fallback.`);
+    // Opcional: Atualizar o banco de dados silênciosamente para "curar" o registro
+    db.runAsync('UPDATE files SET filepath = ? WHERE id = ?', [localPath, file.id]).catch(() => {});
     return localPath;
   }
-  
-  // Fallback 2: If the filename contains the userId structure already
-  const userIdDir = String(file.user_id);
-  if (!file.filepath.includes(userIdDir)) {
-      const altPath = path.join(UPLOADS_BASE, fileName);
-      if (fs.existsSync(altPath)) return altPath;
-  }
-  
-  console.error(`[ERROR] Arquivo não encontrado em nenhum dos caminhos.`);
-  return file.filepath; 
+
+  return storedPath;
 }
 
 // ---------- POST /api/exam/generate ----------
@@ -217,6 +210,9 @@ router.post('/generate', requireAuth, async (req, res) => {
 
   try {
     const absolutePath = resolveFilePath(file);
+    if (!fs.existsSync(absolutePath)) {
+      throw new Error(`Arquivo físico não encontrado. Você o enviou em outro computador ou no Render? Por favor, envie o documento novamente para gerar a prova.`);
+    }
     const text = await extractText(absolutePath);
     if (!text || text.trim().length < 100) return res.status(400).json({ error: 'Arquivo sem conteúdo suficiente.' });
 
