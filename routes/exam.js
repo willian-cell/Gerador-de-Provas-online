@@ -176,14 +176,33 @@ const UPLOADS_BASE = process.env.DATA_DIR
   : path.join(__dirname, '..', 'uploads');
 
 function resolveFilePath(file) {
-  if (fs.existsSync(file.filepath)) return file.filepath;
+  console.log(`[DEBUG] Tentando resolver arquivo: ${file.filepath}`);
+  console.log(`[DEBUG] UPLOADS_BASE atual: ${UPLOADS_BASE}`);
   
-  // Fallback: Check in local uploads folder using userId/filename
+  if (fs.existsSync(file.filepath)) {
+    console.log(`[DEBUG] Encontrado no caminho original.`);
+    return file.filepath;
+  }
+  
+  // Fallback 1: Check in local uploads folder using userId/filename
   const fileName = path.basename(file.filepath);
   const localPath = path.join(UPLOADS_BASE, String(file.user_id), fileName);
-  if (fs.existsSync(localPath)) return localPath;
+  console.log(`[DEBUG] Tentando fallback local: ${localPath}`);
   
-  return file.filepath; // Return original and let it fail if not found
+  if (fs.existsSync(localPath)) {
+    console.log(`[DEBUG] Encontrado via fallback local.`);
+    return localPath;
+  }
+  
+  // Fallback 2: If the filename contains the userId structure already
+  const userIdDir = String(file.user_id);
+  if (!file.filepath.includes(userIdDir)) {
+      const altPath = path.join(UPLOADS_BASE, fileName);
+      if (fs.existsSync(altPath)) return altPath;
+  }
+  
+  console.error(`[ERROR] Arquivo não encontrado em nenhum dos caminhos.`);
+  return file.filepath; 
 }
 
 // ---------- POST /api/exam/generate ----------
