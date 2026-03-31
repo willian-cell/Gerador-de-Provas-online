@@ -319,11 +319,13 @@
     }
 
     function showScore(data) {
-      const pct = Math.round(data.score);
-      const deg = Math.round((pct / 100) * 360);
+      const score = Math.round(data.score);
+      // For the visual circle, we'll assume 100 as the max point goal for UI beauty
+      const visualPct = Math.max(0, Math.min(100, (score / data.total) * 100));
+      const deg = Math.round((visualPct / 100) * 360);
       document.getElementById('scoreCircle').style.setProperty('--score-deg', deg + 'deg');
-      document.getElementById('scoreNumber').textContent = pct + '%';
-      document.getElementById('scoreTitle').textContent = pct >= 70 ? '🎉 Parabéns!' : pct >= 50 ? '👍 Bom resultado!' : '📚 Continue estudando!';
+      document.getElementById('scoreNumber').textContent = score + ' pts';
+      document.getElementById('scoreTitle').textContent = score > (data.total * 0.7) ? '🎉 Parabéns!' : score > (data.total * 0.4) ? '👍 Bom resultado!' : '📚 Continue estudando!';
       document.getElementById('scoreDesc').textContent = `Você acertou ${data.correct} de ${data.total} questões`;
       document.getElementById('modalCorrect').textContent = data.correct;
       document.getElementById('modalWrong').textContent = data.total - data.correct;

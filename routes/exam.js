@@ -305,7 +305,8 @@ router.post('/submit', requireAuth, async (req, res) => {
     if (isCorrect) correct++;
     return { ...q, userAnswer, isCorrect };
   });
-  const score = total > 0 ? (correct / total) * 100 : 0;
+  const incorrect = total - correct;
+  const score = correct - incorrect;
   try {
     const result = await db.runAsync(
       'INSERT INTO exams (user_id, file_id, style, total_questions, correct_answers, score) VALUES (?, ?, ?, ?, ?, ?)',

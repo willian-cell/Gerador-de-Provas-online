@@ -8,14 +8,14 @@ router.get('/', async (req, res) => {
       SELECT
         u.id, u.name, u.cpf,
         COUNT(e.id) as total_exams,
-        ROUND(AVG(e.score), 1) as avg_score,
+        ROUND(AVG(e.score), 0) as avg_score,
         MAX(e.score) as best_score,
         SUM(e.correct_answers) as total_correct,
         SUM(e.total_questions) as total_questions
       FROM users u
       JOIN exams e ON u.id = e.user_id
       GROUP BY u.id
-      ORDER BY avg_score DESC, total_correct DESC
+      ORDER BY avg_score DESC, total_exams DESC
       LIMIT 100
     `);
     const masked = ranking.map((r, i) => ({

@@ -109,12 +109,12 @@
           <div class="stat-card">
             <div class="stat-icon purple">🏆</div>
             <div class="stat-value" id="statAvg">—</div>
-            <div class="stat-label">Média de acertos</div>
+            <div class="stat-label">Média Saldo</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon orange">⭐</div>
             <div class="stat-value" id="statBest">—</div>
-            <div class="stat-label">Melhor pontuação</div>
+            <div class="stat-label">Melhor Saldo</div>
           </div>
         </div>
 
@@ -213,8 +213,8 @@
       if (history.length > 0) {
         const avg = history.reduce((a,b) => a + b.score, 0) / history.length;
         const best = Math.max(...history.map(e => e.score));
-        document.getElementById('statAvg').textContent = avg.toFixed(1) + '%';
-        document.getElementById('statBest').textContent = best.toFixed(1) + '%';
+        document.getElementById('statAvg').textContent = avg.toFixed(0) + ' pts';
+        document.getElementById('statBest').textContent = best.toFixed(0) + ' pts';
       }
       // Show review badge
       const badge = document.getElementById('reviewBadge');

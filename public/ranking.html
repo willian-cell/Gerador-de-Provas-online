@@ -3,76 +3,84 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ranking - Gerador de Provas Online</title>
+  <title>Ranking Global - Gerador de Provas Online</title>
   <link rel="stylesheet" href="/css/style.css">
   <style>
-    .ranking-header-row {
-      background: linear-gradient(135deg,rgba(21,101,192,0.2),rgba(0,200,83,0.1));
-      border-radius: var(--radius-lg);
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .rank-table-wrapper {
+      background: var(--dark-700);
+      border-radius: 1rem;
+      overflow: hidden;
+      border: 1px solid var(--dark-500);
     }
+    .ranking-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    .ranking-table th {
+      background: var(--dark-800);
+      padding: 1rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--gray-400);
+      letter-spacing: 0.05em;
+    }
+    .ranking-table td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--dark-500);
+      font-size: 0.9rem;
+    }
+    .ranking-table tr:last-child td { border: none; }
+    .ranking-table tr:hover td { background: rgba(59,130,246,0.05); }
+    
+    .rank-num { font-weight: 800; color: var(--gray-400); }
+    .rank-num.top { color: var(--blue-400); }
+    
+    .student-cell { display: flex; align-items: center; gap: 0.75rem; }
+    .student-avatar {
+      width: 32px; height: 32px; border-radius: 99px;
+      background: var(--dark-500); display: flex; align-items: center;
+      justify-content: center; font-weight: 700; font-size: 0.8rem;
+    }
+    
     .my-rank-card {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(33,150,243,0.3);
-      border-radius: var(--radius-lg);
-      padding: 1.25rem 1.5rem;
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-      margin-bottom: 2rem;
+      display: flex; align-items: center; gap: 2rem;
+      background: linear-gradient(135deg, var(--dark-700), var(--dark-800));
+      padding: 1.5rem; border-radius: 1rem; margin-bottom: 1.5rem;
+      border: 1px solid var(--blue-600); box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
     .rank-medal { font-size: 2.5rem; }
-    .rank-table-wrapper { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.06); }
-    .score-bar-cell { display: flex; align-items: center; gap: 0.75rem; }
-    .score-mini-bar { width: 80px; height: 6px; background: var(--dark-500); border-radius: 99px; overflow: hidden; flex-shrink: 0; }
-    .score-mini-fill { height: 100%; background: linear-gradient(90deg,var(--blue-600),var(--green-600)); border-radius: 99px; }
-    .empty-ranking {
-      text-align: center;
-      padding: 4rem;
-      color: var(--gray-500);
+    .stat-label { font-size: 0.7rem; color: var(--gray-400); margin-top: 0.25rem; }
+    .empty-ranking { text-align: center; padding: 4rem 2rem; color: var(--gray-400); }
+
+    @media (max-width: 768px) {
+      .my-rank-card { flex-direction: column; text-align: center; gap: 1rem; }
+      .ranking-table th:nth-child(3), .ranking-table td:nth-child(3) { display: none; }
     }
   </style>
 </head>
 <body>
   <div class="app-layout">
+    <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-logo">
         <div class="logo-icon">🎓</div>
-        <div class="logo-text"><strong>WBO Tecnologia</strong><span>Sistema Gerador de Provas</span></div>
+        <div class="logo-text"><strong>WBO Tecnologia</strong><span>Gerador de Provas</span></div>
       </div>
-      <div class="sidebar-user">
+      <div class="sidebar-user" id="sidebarUser">
         <div class="user-avatar" id="avatarChar">?</div>
         <div class="user-info">
-          <div class="user-name" id="sidebarName">Carregando...</div>
+          <div class="user-name" id="sidebarName">...</div>
           <div class="user-cpf" id="sidebarCPF"></div>
         </div>
       </div>
       <div class="nav-label">Menu</div>
-      <a href="/dashboard" class="nav-link">
-        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/></svg>
-        Dashboard
-      </a>
-      <a href="/profile" class="nav-link">
-        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        Perfil
-      </a>
-      <a href="/ranking" class="nav-link active">
-        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M8 16v-4M12 16V8M16 16v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="2" y="2" width="20" height="20" rx="4" stroke="currentColor" stroke-width="2"/></svg>
-        Ranking
-      </a>
-      <a href="/review" class="nav-link">
-        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        Revisão
-      </a>
+      <a href="/dashboard" class="nav-link">Dashboard</a>
+      <a href="/profile" class="nav-link">Perfil</a>
+      <a href="/ranking" class="nav-link active">Ranking</a>
+      <a href="/review" class="nav-link">Revisão</a>
       <div class="sidebar-footer">
-        <button onclick="logout()" class="btn btn-ghost btn-full">
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Sair
-        </button>
+        <button onclick="location.href='/api/auth/logout'" class="btn btn-ghost btn-full">Sair</button>
       </div>
     </aside>
 
@@ -80,11 +88,11 @@
       <header class="page-header">
         <div>
           <h3 style="font-size:1.1rem;margin:0">🏆 Ranking Global</h3>
-          <p style="font-size:0.8rem;color:var(--gray-400);margin:0">Os melhores estudantes do sistema</p>
+          <p style="font-size:0.8rem;color:var(--gray-400);margin:0">Os melhores estudantes do sistema (Acertos - Erros)</p>
         </div>
       </header>
+
       <div class="page-body">
-        <!-- My position -->
         <div class="my-rank-card" id="myRankCard" style="display:none">
           <div class="rank-medal" id="myMedal">🏅</div>
           <div style="flex:1">
@@ -92,8 +100,8 @@
             <div style="font-size:1.4rem;font-weight:800" id="myPosition">#—</div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;text-align:center">
-            <div><div style="font-size:1.2rem;font-weight:700;color:var(--blue-400)" id="myAvg">—</div><div class="stat-label">Média</div></div>
-            <div><div style="font-size:1.2rem;font-weight:700;color:var(--green-600)" id="myBest">—</div><div class="stat-label">Melhor</div></div>
+            <div><div style="font-size:1.2rem;font-weight:700;color:var(--blue-400)" id="myAvg">—</div><div class="stat-label">Média Saldo</div></div>
+            <div><div style="font-size:1.2rem;font-weight:700;color:var(--green-600)" id="myBest">—</div><div class="stat-label">Melhor Saldo</div></div>
             <div><div style="font-size:1.2rem;font-weight:700" id="myExams">—</div><div class="stat-label">Provas</div></div>
           </div>
         </div>
@@ -106,12 +114,12 @@
                 <th>Estudante</th>
                 <th>CPF</th>
                 <th>Provas</th>
-                <th>Média de Acertos</th>
+                <th>Média Saldo</th>
                 <th>Melhor</th>
               </tr>
             </thead>
             <tbody id="rankingBody">
-              <tr><td colspan="6"><div class="empty-ranking"><div style="font-size:3rem;margin-bottom:1rem">🏆</div><p>Nenhum resultado ainda. Faça sua primeira prova!</p></div></td></tr>
+              <tr><td colspan="6" class="empty-ranking">Carregando ranking...</td></tr>
             </tbody>
           </table>
         </div>
@@ -120,61 +128,68 @@
   </div>
 
   <script>
-    let currentUserId = null;
-
-    async function init() {
-      const res = await fetch('/api/auth/me');
-      if (!res.ok) { window.location.href = '/'; return; }
-      const user = await res.json();
-      currentUserId = user.id;
-      document.getElementById('sidebarName').textContent = user.name;
-      document.getElementById('avatarChar').textContent = user.name[0].toUpperCase();
-      document.getElementById('sidebarCPF').textContent = user.cpf.slice(0,3)+'.***.***-'+user.cpf.slice(9);
-      loadRanking();
-      loadMyPosition();
-    }
-
     async function loadRanking() {
-      const res = await fetch('/api/ranking');
-      const data = await res.json();
-      const tbody = document.getElementById('rankingBody');
-      if (!data.length) return;
-      tbody.innerHTML = data.map(r => {
-        const medals = ['🥇','🥇','🥈','🥉'];
-        const pos = r.position <= 3 ? medals[r.position] : r.position;
-        const posClass = r.position===1?'gold':r.position===2?'silver':r.position===3?'bronze':'';
-        const isMe = r.id === currentUserId;
-        return `<tr style="${isMe?'background:rgba(33,150,243,0.08);':''}">
-          <td><span class="rank-position ${posClass}">${pos}</span></td>
-          <td class="rank-name">${r.name} ${isMe?'<span class="badge badge-blue" style="font-size:0.65rem">Você</span>':''}</td>
-          <td style="color:var(--gray-400);font-size:0.8rem">${r.cpf}</td>
-          <td>${r.total_exams}</td>
-          <td>
-            <div class="score-bar-cell">
-              <div class="score-mini-bar"><div class="score-mini-fill" style="width:${r.avg_score}%"></div></div>
-              <span style="font-weight:600;color:${r.avg_score>=70?'var(--green-600)':r.avg_score>=50?'var(--warning)':'var(--danger)'}">${r.avg_score}%</span>
-            </div>
-          </td>
-          <td style="font-weight:700;color:var(--blue-400)">${r.best_score?.toFixed(1)}%</td>
-        </tr>`;
-      }).join('');
-    }
+      try {
+        const [userResp, rankingData] = await Promise.all([
+          fetch('/api/auth/me').then(r => r.json()),
+          fetch('/api/ranking').then(r => r.json())
+        ]);
 
-    async function loadMyPosition() {
-      const res = await fetch('/api/ranking/user/' + currentUserId);
-      const data = await res.json();
-      if (!data.stats) return;
-      const card = document.getElementById('myRankCard');
-      card.style.display = 'flex';
-      document.getElementById('myPosition').textContent = '#' + data.position;
-      document.getElementById('myMedal').textContent = data.position===1?'🥇':data.position===2?'🥈':data.position===3?'🥉':'🏅';
-      document.getElementById('myAvg').textContent = data.stats.avg_score + '%';
-      document.getElementById('myBest').textContent = data.stats.best_score?.toFixed(1) + '%';
-      document.getElementById('myExams').textContent = data.stats.total_exams;
-    }
+        if (userResp.success) {
+          const user = userResp.user;
+          document.getElementById('sidebarName').textContent = user.name;
+          document.getElementById('sidebarCPF').textContent = user.cpf;
+          document.getElementById('avatarChar').textContent = user.name[0];
+          
+          // Get my rank specifically
+          const myPosResp = await fetch(`/api/ranking/user/` + user.id).then(r => r.json());
+          if (myPosResp && myPosResp.stats) {
+            document.getElementById('myRankCard').style.display = 'flex';
+            document.getElementById('myPosition').textContent = '#' + myPosResp.position;
+            document.getElementById('myAvg').textContent = myPosResp.stats.avg_score;
+            document.getElementById('myBest').textContent = myPosResp.stats.best_score;
+            document.getElementById('myExams').textContent = myPosResp.stats.total_exams;
+            
+            if (myPosResp.position === 1) document.getElementById('myMedal').textContent = '🥇';
+            else if (myPosResp.position === 2) document.getElementById('myMedal').textContent = '🥈';
+            else if (myPosResp.position === 3) document.getElementById('myMedal').textContent = '🥉';
+          }
+        }
 
-    async function logout() { await fetch('/api/auth/logout'); window.location.href = '/'; }
-    init();
+        const tbody = document.getElementById('rankingBody');
+        if (!rankingData || rankingData.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6"><div class="empty-ranking"><div style="font-size:3rem;margin-bottom:1rem">🏆</div><p>Nenhum resultado ainda. Faça sua primeira prova!</p></div></td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = rankingData.map((r, i) => {
+          let posDisplay = i + 1;
+          if (i === 0) posDisplay = '🥇';
+          else if (i === 1) posDisplay = '🥈';
+          else if (i === 2) posDisplay = '🥉';
+
+          return `
+            <tr>
+              <td class="rank-num ${i < 3 ? 'top' : ''}">${posDisplay}</td>
+              <td>
+                <div class="student-cell">
+                  <div class="student-avatar">${r.name[0]}</div>
+                  <div style="font-weight:600">${r.name}</div>
+                </div>
+              </td>
+              <td style="font-family:monospace;color:var(--gray-400)">${r.cpf}</td>
+              <td style="font-weight:700">${r.total_exams}</td>
+              <td style="color:var(--blue-400);font-weight:700">${r.avg_score} pts</td>
+              <td style="color:var(--green-600);font-weight:700">${r.best_score} pts</td>
+            </tr>
+          `;
+        }).join('');
+
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadRanking();
   </script>
-<script src="/js/ui.js"></script></body>
+</body>
 </html>
