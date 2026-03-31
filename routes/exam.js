@@ -106,11 +106,12 @@ Sua missão é elaborar questões de **${complexity} complexidade** a partir do 
 INSTRUÇÕES CRÍTICAS:
 1. Escreva TUDO em Português do Brasil.
 2. Cada questão deve ser uma afirmação completa, bem escrita e contextualizada.
-3. **Gabarito Indiscutível**: O erro ou acerto deve ser baseado EXATAMENTE no texto ou em fundamentos consolidados do assunto.
-4. **Variedade**: Foque especialmente em: **${angle}**.
-5. ${realExamInstruction}
-6. GERE EXATAMENTE ${count} QUESTÕES.
-7. **Explicação Educativa**: Forneça uma fundamentação acadêmica/legal para cada questão.
+3. **Gabarito Binário Obrigatório**: O campo "answer" deve ser APENAS "certo" ou "errado". É EXPRESSAMENTE PROIBIDO o uso de "incerto", "depende", "nulo" ou qualquer outra opção. Se a informação for ambígua, REFORMULE a afirmação para que ela seja claramente Falsa (errado) ou Verdadeira (certo).
+4. **Gabarito Indiscutível**: O erro ou acerto deve ser baseado EXATAMENTE no texto ou em fundamentos consolidados do assunto.
+5. **Variedade**: Foque especialmente em: **${angle}**.
+6. ${realExamInstruction}
+7. GERE EXATAMENTE ${count} QUESTÕES.
+8. **Explicação Educativa**: Forneça uma fundamentação acadêmica/legal para cada questão.
 
 Numere começando em ${startNum}.
 ${existingBlock}
@@ -162,7 +163,20 @@ async function generateBatch(textChunks, style, count, startNum, existingStateme
   const startIdx = raw.indexOf('[');
   const endIdx = raw.lastIndexOf(']');
   if (startIdx === -1 || endIdx === -1) throw new Error('Groq não retornou JSON válido.');
-  return JSON.parse(raw.substring(startIdx, endIdx + 1));
+  
+  let batch = JSON.parse(raw.substring(startIdx, endIdx + 1));
+  
+  // Safety check: Filter out any "incerto" or invalid answers for CESPE style
+  if (style === 'cespe') {
+    batch = batch.map(q => {
+      if (q.answer && q.answer.toLowerCase() !== 'certo' && q.answer.toLowerCase() !== 'errado') {
+        q.answer = 'errado'; 
+      }
+      return q;
+    }).filter(q => q.answer === 'certo' || q.answer === 'errado');
+  }
+  
+  return batch;
 }
 
 // ---------- Get key text from a question (for dedup & anti-repeat) ----------
